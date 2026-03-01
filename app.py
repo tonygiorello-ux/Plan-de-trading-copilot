@@ -80,7 +80,10 @@ def record_trade_entry():
         "sl_respected": None,
         "tp_reached": None,
         "exit_time": None,
-        "result": None
+        "result": None,
+        # Deux conditions de trading
+        "bonnes_conditions": is_ok("s1", "bonnes_conditions"),
+        "annonces": is_ok("s1", "annonces")
     }
     st.session_state.trade_history.append(trade_data)
 
@@ -521,7 +524,8 @@ def convert_to_csv(trades):
     # En-tête
     writer.writerow([
         'Date', 'Session', 'Direction', 'Entrée', 'Sortie', 
-        'Résultat', 'Règles Discipline', 'Règles Timing', 
+        'Résultat', 'Bonnes Conditions', 'Annonces Vérifiées',
+        'Règles Discipline', 'Règles Timing', 
         'SL Respecté', 'TP Atteint'
     ])
     
@@ -537,6 +541,8 @@ def convert_to_csv(trades):
             trade.get('entry_time', ''),
             trade.get('exit_time', ''),
             trade.get('result', ''),
+            '✅' if trade.get('bonnes_conditions') else '❌',
+            '✅' if trade.get('annonces') else '❌',
             f"{discipline_rules}/2",
             f"{timing_rules}/3",
             '✅' if trade.get('sl_respected') else '❌',
@@ -554,7 +560,7 @@ date_str = datetime.now(PARIS).strftime("%d %b %Y").upper()
 c_title, c_clock = st.columns([3, 1])
 with c_title:
     st.markdown('<p class="hud-eyebrow">◈ Copilot de Trading</p>', unsafe_allow_html=True)
-    
+    st.markdown('<p class="hud-title">Plan de Trading</p>', unsafe_allow_html=True)
 with c_clock:
     st.markdown(f'<p class="live-date">{date_str}</p><p class="live-clock">{now_str}</p>', unsafe_allow_html=True)
 
@@ -692,13 +698,19 @@ if st.session_state.step == 0:
                     entry_rules += len(trade["validated_rules"]["s2"])
                 total_rules_respected += entry_rules
                 
+                # Conditions de trading (2 conditions)
+                if trade.get("bonnes_conditions"):
+                    total_rules_respected += 1
+                if trade.get("annonces"):
+                    total_rules_respected += 1
+                
                 # Règles de sortie (SL/TP)
                 if trade["sl_respected"]:
                     total_rules_respected += 1
                 if trade["tp_reached"]:
                     total_rules_respected += 1
                 
-                total_rules_possible += entry_rules + 2  # +2 pour SL et TP
+                total_rules_possible += entry_rules + 4  # +2 conditions + 2 pour SL et TP
             
             overall_respect_rate = int((total_rules_respected / total_rules_possible * 100)) if total_rules_possible > 0 else 0
             
@@ -784,10 +796,17 @@ if st.session_state.step == 0:
                 
                 # Règles validées
                 rules_text = []
+                
+                # Compter uniquement les règles de discipline (r1, r2) dans s1
+                discipline_count = 0
                 if "s1" in trade["validated_rules"]:
-                    rules_text.append(f"Discipline: {len(trade['validated_rules']['s1'])}/2")
-                if "s2" in trade["validated_rules"]:
-                    rules_text.append(f"Timing: {len(trade['validated_rules']['s2'])}/3")
+                    discipline_rules = ["r1", "r2"]  # règles de discipline uniquement
+                    discipline_count = len([r for r in discipline_rules if r in trade["validated_rules"]["s1"]])
+                    rules_text.append(f"Discipline: {discipline_count}/2")
+                
+                # Compter les règles de timing dans s2
+                # if "s2" in trade["validated_rules"]:
+                #     rules_text.append(f"Timing: {len(trade['validated_rules']['s2'])}/3")
                 
                 # SL/TP
                 sl_text = "✅" if trade["sl_respected"] else "❌"
@@ -850,6 +869,7 @@ if st.session_state.step == 0:
                     st.session_state.can_enter = False
                     log_event("DIRECTION", "VENTE")
                     st.rerun()
+            
             if st.session_state.session_log:
                 st.markdown("<br>", unsafe_allow_html=True)
             
@@ -869,9 +889,75 @@ if st.session_state.step == 0:
             """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
-# STEPS 1–5 (normal) ou DASHBOARD POSITION (trade_active)
+# STEP 1 — CONDITIONS DE TRADING (uniquement si direction choisie)
 # ══════════════════════════════════════════════════════════════
-else:
+if st.session_state.step == 1 and st.session_state.direction is not None:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text-faint);letter-spacing:0.2em;text-align:center;margin-bottom:20px;">🔍 CONDITIONS DE TRADING</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="card-glow">
+        <div style="font-family:\'Syne\',sans-serif;font-size:16px;font-weight:800;color:var(--cyan);margin-bottom:16px;text-align:center;">
+            Vérification pré-trade
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Utiliser le même format que les règles de discipline
+    def rule_card_conditions(text, color, sk, rk):
+        done = is_ok(sk, rk)
+        icon_c = {"cyan": "var(--cyan)", "orange": "var(--orange)", "red": "var(--red)"}[color]
+        bg_c = {"cyan": "rgba(59,255,160,0.06)", "orange": "rgba(255,184,0,0.06)", "red": "rgba(255,95,95,0.06)"}[color]
+        border_c = {"cyan": "rgba(59,255,160,0.2)", "orange": "rgba(255,184,0,0.2)", "red": "rgba(255,95,95,0.2)"}[color]
+        text_c = {"cyan": "#C8F7E5", "orange": "#FFF0C0", "red": "#FFD5D5"}[color]
+        
+        st.markdown(f"""
+        <div class="rule {color} {('done' if done else '')}" style="background:{bg_c};border:1px solid {border_c};border-left:3px solid {icon_c};color:{text_c};">
+            <span class="rule-icon">📋</span>
+            {text}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if not done:
+            if st.button("✓  J'ai vérifié", key=f"v_{sk}_{rk}", use_container_width=True):
+                validate(sk, rk)
+                st.rerun()
+        else:
+            st.markdown(f'<div class="rule-ok-badge" style="color:{icon_c}88;">Confirmé ✓</div>', unsafe_allow_html=True)
+
+    sk = "s1"
+    
+    # Condition 1: Bonnes conditions
+    rule_card_conditions("Suis-je dans de bonnes conditions pour trader ? (concentration, état d'esprit, forme physique...)", "cyan", sk, "bonnes_conditions")
+    
+    # Condition 2: Annonces
+    rule_card_conditions("Ai-je vérifié les annonces économiques importantes ?", "orange", sk, "annonces")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Bouton pour continuer vers les règles de discipline
+    conditions_all_ok = all_ok(sk, ["bonnes_conditions", "annonces"])
+    
+    if conditions_all_ok:
+        st.markdown('<div class="enter-banner">', unsafe_allow_html=True)
+        st.markdown('<div class="enter-title">✅ Conditions remplies</div>', unsafe_allow_html=True)
+        st.markdown('<div class="enter-sub">Tu peux passer aux règles de discipline</div>', unsafe_allow_html=True)
+        
+        if st.button("→ Continuer vers les règles", use_container_width=True, key="continue_to_rules"):
+            st.session_state.step = 2
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="lock-warn">
+            ⚠ Valide toutes les conditions pour continuer
+        </div>
+        """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════
+# STEPS 2+ (normal) ou DASHBOARD POSITION (trade_active)
+# ══════════════════════════════════════════════════════════════
+if st.session_state.step >= 2 or st.session_state.trade_active:
     direction = st.session_state.direction
     step      = st.session_state.step
 
@@ -1077,11 +1163,11 @@ else:
 
         can_next = False
 
-        # ── STEP 1 ─────────────────────────────────────────
-        if step == 1:
+        # ── STEP 2 ─────────────────────────────────────────
+        if step == 2:
             st.markdown("""
             <div class="step-hdr">
-                <div class="step-num-badge">Étape 01 / 02</div>
+                <div class="step-num-badge">Étape 02 / 03</div>
                 <div class="step-hdr-title">Discipline</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1089,12 +1175,34 @@ else:
             rule_card("Entrée trop tardive → réduit le gain et augmente potentiellement la perte.", "orange", sk, "r1")
             rule_card("Ne pas respecter le Stop-Loss fixé → INTERDIT.", "red", sk, "r2")
             can_next = all_ok(sk, ["r1", "r2"])
+            
+            # ── BANNER PROGRESSION VERS ÉTAPE 3 ─────────────────────
+            if can_next:
+                st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+                st.markdown("""
+                <div class="enter-banner">
+                    <div class="enter-title">✅ Discipline validée</div>
+                    <div class="enter-sub">RÈGLES DE DISCIPLINE VÉRIFIÉES · PASSONS AU TIMING</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col_next, col_back = st.columns([2, 1])
+                with col_next:
+                    if st.button("→ Continuer", use_container_width=True, key="continue_to_timing"):
+                        st.session_state.step = 3
+                        st.rerun()
+                with col_back:
+                    if st.button("← Retour", use_container_width=True, key="back_from_discipline"):
+                        st.session_state.step = 0
+                        st.session_state.direction = None
+                        st.session_state.validated = {}
+                        st.rerun()
 
-        # ── STEP 2 ─────────────────────────────────────────
-        elif step == 2:
+        # ── STEP 3 ─────────────────────────────────────────
+        elif step == 3:
             st.markdown("""
             <div class="step-hdr">
-                <div class="step-num-badge">Étape 02 / 02</div>
+                <div class="step-num-badge">Étape 03 / 03</div>
                 <div class="step-hdr-title">Quand est-ce que je rentre ?</div>
             </div>
             """, unsafe_allow_html=True)
@@ -1108,7 +1216,7 @@ else:
             can_next = all_ok(sk, ["r1", "r2"])
 
         # ── BANNER ENTRÉE EN POSITION ─────────────────────
-        if can_next and step == 2:
+        if can_next and step == 3:
             st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
             st.markdown("""
             <div class="enter-banner">
