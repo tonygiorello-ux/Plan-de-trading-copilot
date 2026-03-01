@@ -2,11 +2,46 @@ import streamlit as st
 from datetime import datetime, time
 import pytz
 from streamlit_autorefresh import st_autorefresh
+import json
+import os
+from pathlib import Path
 
+# ══════════════════════════════════════════════
+# PERSISTENCE DES DONNÉES
+# ══════════════════════════════════════════════
+DATA_FILE = Path("trading_data.json")
+
+def save_data():
+    """Sauvegarde les données de trading dans un fichier JSON"""
+    data = {
+        "trade_history": st.session_state.get("trade_history", []),
+        "session_log": st.session_state.get("session_log", []),
+        "validated": st.session_state.get("validated", {})
+    }
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Erreur sauvegarde: {e}")
+
+def load_data():
+    """Charge les données de trading depuis le fichier JSON"""
+    if DATA_FILE.exists():
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("trade_history", []), data.get("session_log", []), data.get("validated", {})
+        except Exception as e:
+            print(f"Erreur chargement: {e}")
+            return [], [], {}
+    return [], [], {}
+
+# ══════════════════════════════════════════════
+# SESSIONS
+# ══════════════════════════════════════════════
 PARIS = pytz.timezone("Europe/Paris")
 st_autorefresh(interval=1000, key="timer_refresh")
 
-# ══════════════════════════════════════════════
 # SESSIONS
 # ══════════════════════════════════════════════
 SESSIONS = [
@@ -27,11 +62,13 @@ session_name, start, end = get_active_session()
 # ══════════════════════════════════════════════
 # STATE
 # ══════════════════════════════════════════════
+# Charger les données sauvegardées au démarrage
+saved_trade_history, saved_session_log, saved_validated = load_data()
+
 defaults = {
     "step": 0,
     "direction": None,
-    "validated": {},
-    "session_log": [],
+    "session_log": saved_session_log,  # Utiliser les données chargées
     "entry_time": None,
     "trade_active": False,
     "summary_shown": False,
@@ -41,7 +78,8 @@ defaults = {
     "sl_respected": False,
     "tp_reached": False,
     # Historique des trades avec détails
-    "trade_history": [],
+    "trade_history": saved_trade_history,  # Utiliser les données chargées
+    "validated": saved_validated,  # Utiliser les règles validées chargées
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -54,6 +92,7 @@ def validate(sk, rk):
     if sk not in st.session_state.validated:
         st.session_state.validated[sk] = set()
     st.session_state.validated[sk].add(rk)
+    save_data()  # Sauvegarder après la validation d'une règle
 
 def is_ok(sk, rk):
     return rk in st.session_state.validated.get(sk, set())
@@ -68,6 +107,7 @@ def log_event(etype, detail=""):
         "detail": detail,
         "session": session_name or "—",
     })
+    save_data()  # Sauvegarder après l'ajout d'un événement
 
 def record_trade_entry():
     """Enregistre l'entrée en position avec les règles validées"""
@@ -86,6 +126,7 @@ def record_trade_entry():
         "annonces": is_ok("s1", "annonces")
     }
     st.session_state.trade_history.append(trade_data)
+    save_data()  # Sauvegarder après l'ajout d'un trade
 
 def record_trade_exit(is_win, sl_respected, tp_reached):
     """Enregistre la sortie de position"""
@@ -96,6 +137,7 @@ def record_trade_exit(is_win, sl_respected, tp_reached):
         last_trade["sl_respected"] = sl_respected
         last_trade["tp_reached"] = tp_reached
         last_trade["hold_respected"] = st.session_state.get("hold_respect_trade", False)
+        save_data()  # Sauvegarder après la mise à jour du trade
 
 def get_tp_zone():
     if session_name is None:
@@ -887,6 +929,7 @@ if st.session_state.summary_shown and st.session_state.step == 0:
                 st.session_state.session_log = []
                 st.session_state.validated = {}
                 st.session_state.summary_shown = False
+                save_data()  # Sauvegarder après le reset
                 st.rerun()
         with col_close:
             if st.button("✕ Fermer le rapport", use_container_width=True):
@@ -912,6 +955,7 @@ if st.session_state.summary_shown and st.session_state.step == 0:
                 st.session_state.session_log = []
                 st.session_state.validated = {}
                 st.session_state.summary_shown = False
+                save_data()  # Sauvegarder après le reset
                 st.rerun()
         with col_close:
             if st.button("✕ Fermer le rapport", use_container_width=True):
