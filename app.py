@@ -12,7 +12,7 @@ st_autorefresh(interval=1000, key="timer_refresh")
 SESSIONS = [
     ("EU",  time(9, 45),  time(14, 15)),
     ("US1", time(15, 45), time(17, 15)),
-    ("US2", time(19, 30), time(22,  0)),
+    ("US2", time(19, 30), time(21,  0)),
 ]
 
 def get_active_session():
@@ -101,7 +101,7 @@ def get_tp_zone():
     zones = {
         "EU":  [time(9,45),  time(10,15), time(10,30), time(14,15)],
         "US1": [time(15,45), time(16,15), time(16,30), time(17,15)],
-        "US2": [time(19,30), time(20,0),  time(20,15), time(22,0)],
+        "US2": [time(19,30), time(20,0),  time(20,15), time(20,30)],
     }
     g, o, r, se = [dt(t) for t in zones[session_name]]
     if   g <= now < o:  return "M15",   "#3BFFA0", o,  max(0, int((o  - now).total_seconds()))
