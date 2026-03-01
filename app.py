@@ -449,9 +449,9 @@ div[data-testid="stButton"] > button {
 }
 div[data-testid="stButton"] > button:hover {
     background:var(--surface) !important;
-    border-color:var(--cyan-dim) !important;
-    color:var(--cyan) !important;
-    box-shadow:0 0 12px rgba(59,255,160,0.15) !important;
+    border-color:var(--border) !important;
+    color:var(--text-dim) !important;
+    box-shadow:0 0 12px rgba(0,0,0,0.1) !important;
     transform:translateY(-1px) !important;
 }
 div[data-testid="stButton"] > button:disabled {
