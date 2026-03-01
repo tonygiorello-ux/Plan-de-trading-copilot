@@ -10,7 +10,7 @@ st_autorefresh(interval=1000, key="timer_refresh")
 # SESSIONS
 # ══════════════════════════════════════════════
 SESSIONS = [
-    ("EU",  time(9, 45),  time(14, 15)),
+    ("EU",  time(9, 45),  time(11, 15)),
     ("US1", time(15, 45), time(17, 15)),
     ("US2", time(19, 30), time(21,  0)),
 ]
@@ -99,7 +99,7 @@ def get_tp_zone():
     now = datetime.now(PARIS)
     def dt(t): return PARIS.localize(datetime.combine(now.date(), t))
     zones = {
-        "EU":  [time(9,45),  time(10,15), time(10,30), time(14,15)],
+        "EU":  [time(9,45),  time(10,15), time(10,30), time(10,45)],
         "US1": [time(15,45), time(16,15), time(16,30), time(17,15)],
         "US2": [time(19,30), time(20,0),  time(20,15), time(20,30)],
     }
