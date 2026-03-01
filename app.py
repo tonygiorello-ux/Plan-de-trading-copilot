@@ -948,9 +948,17 @@ if st.session_state.step == 1 and st.session_state.direction is not None:
         st.markdown('<div class="enter-title">✅ Conditions remplies</div>', unsafe_allow_html=True)
         st.markdown('<div class="enter-sub">Tu peux passer aux règles de discipline</div>', unsafe_allow_html=True)
         
-        if st.button("→ Continuer vers les règles", use_container_width=True, key="continue_to_rules"):
-            st.session_state.step = 2
-            st.rerun()
+        col_next, col_back = st.columns([2, 1])
+        with col_next:
+            if st.button("→ Continuer vers les règles", use_container_width=True, key="continue_to_rules"):
+                st.session_state.step = 2
+                st.rerun()
+        with col_back:
+            if st.button("← Retour", use_container_width=True, key="back_from_conditions"):
+                st.session_state.step = 0
+                st.session_state.direction = None
+                st.session_state.validated = {}
+                st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
     else:
@@ -959,6 +967,14 @@ if st.session_state.step == 1 and st.session_state.direction is not None:
             ⚠ Valide toutes les conditions pour continuer
         </div>
         """, unsafe_allow_html=True)
+        
+        # Bouton retour même si conditions non validées
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("← Retour", use_container_width=True, key="back_from_conditions_anyway"):
+            st.session_state.step = 0
+            st.session_state.direction = None
+            st.session_state.validated = {}
+            st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # STEPS 2+ (normal) ou DASHBOARD POSITION (trade_active)
