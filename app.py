@@ -887,6 +887,12 @@ if st.session_state.step == 0:
                 </div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Bouton d'accès au rapport de session (toujours visible)
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("📊 Rapport de session", use_container_width=True, key="report_from_anywhere"):
+                st.session_state.summary_shown = True
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # STEP 1 — CONDITIONS DE TRADING (uniquement si direction choisie)
