@@ -95,6 +95,7 @@ def record_trade_exit(is_win, sl_respected, tp_reached):
         last_trade["result"] = "GAGNANT" if is_win else "PERDANT"
         last_trade["sl_respected"] = sl_respected
         last_trade["tp_reached"] = tp_reached
+        last_trade["hold_respected"] = st.session_state.get("hold_respect_trade", False)
 
 def get_tp_zone():
     if session_name is None:
@@ -432,8 +433,9 @@ st.markdown("""
 .stat-box {
     background:var(--surface2); border:1px solid var(--border);
     border-radius:10px; padding:18px; text-align:center;
+    overflow: hidden; min-height: 90px;
 }
-.stat-num { font-family:'Syne',sans-serif; font-size:36px; font-weight:800; line-height:1; }
+.stat-num { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; line-height:1; word-wrap: break-word; }
 .stat-lbl { font-family:'DM Mono',monospace; font-size:10px; color:var(--text-faint); letter-spacing:0.2em; margin-top:6px; text-transform:uppercase; }
 
 /* ── STREAMLIT BUTTON OVERRIDES ── */
@@ -526,7 +528,7 @@ def convert_to_csv(trades):
         'Date', 'Session', 'Direction', 'Entrée', 'Sortie', 
         'Résultat', 'Bonnes Conditions', 'Annonces Vérifiées',
         'Règles Discipline', 'Règles Timing', 
-        'SL Respecté', 'TP Atteint'
+        'SL Respecté', 'Tenue Respectée', 'TP Atteint'
     ])
     
     # Données
@@ -546,6 +548,7 @@ def convert_to_csv(trades):
             f"{discipline_rules}/2",
             f"{timing_rules}/3",
             '✅' if trade.get('sl_respected') else '❌',
+            '✅' if trade.get('hold_respected', False) else '❌',
             '✅' if trade.get('tp_reached') else '❌'
         ])
     
@@ -661,134 +664,160 @@ st.markdown("<div class='divider-glow'></div>", unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════
 if st.session_state.step == 0:
 
-    # ── RAPPORT DE SESSION ───────────────────────────────
-    if st.session_state.summary_shown:
+    # ── CHOIX DIRECTION ───────────────────────────────────
+    if session_name is not None:
+        st.markdown('<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text-faint);letter-spacing:0.2em;text-align:center;margin-bottom:20px;">SÉLECTIONNER LA DIRECTION</div>', unsafe_allow_html=True)
         st.markdown("""
-        <div class="step-hdr">
-            <div class="step-num-badge">Fin de session</div>
-            <div class="step-hdr-title">Rapport de Performance</div>
+        <style>
+        div[data-testid="stButton"] > button { height:100px !important; font-size:18px !important; font-weight:700 !important; }
+        </style>""", unsafe_allow_html=True)
+        ca, cv = st.columns(2)
+        with ca:
+            if st.button("▲  ACHAT", use_container_width=True, key="btn_achat"):
+                st.session_state.direction = "ACHAT"
+                st.session_state.step = 1
+                st.session_state.validated = {}
+                st.session_state.can_enter = False
+                log_event("DIRECTION", "ACHAT")
+                st.rerun()
+        with cv:
+            if st.button("▼  VENTE", use_container_width=True, key="btn_vente"):
+                st.session_state.direction = "VENTE"
+                st.session_state.step = 1
+                st.session_state.validated = {}
+                st.session_state.can_enter = False
+                log_event("DIRECTION", "VENTE")
+                st.rerun()
+        
+        if st.session_state.session_log:
+            st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Bouton d'accès au rapport de session en fin de page
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("📊 Rapport de session", use_container_width=True, key="report_from_new_session"):
+            st.session_state.summary_shown = True
+            st.rerun()
+    else:
+        st.markdown("""
+        <div style="background:rgba(255,95,95,0.05);border:1px solid rgba(255,95,95,0.2);border-radius:10px;padding:32px;text-align:center;">
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--red);">Hors session</div>
+            <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:10px;letter-spacing:0.12em;">
+                EU 09:45–11:15 · US1 15:45–17:15 · US2 19:30–21:00
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # Calcul des statistiques
-        trades = st.session_state.trade_history
-        total_trades = len(trades)
+        # Bouton d'accès au rapport de session (toujours visible)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("📊 Rapport de session", use_container_width=True, key="report_from_anywhere"):
+            st.session_state.summary_shown = True
+            st.rerun()
+
+# ══════════════════════════════════════════════════════════════
+# RAPPORT DE PERFORMANCE (toujours visible si summary_shown et pas d'étape de trading)
+# ══════════════════════════════════════════════════════════════
+if st.session_state.summary_shown and st.session_state.step == 0:
+    st.markdown("""
+    <div class="step-hdr">
+        <div class="step-num-badge">Fin de session</div>
+        <div class="step-hdr-title">Rapport de Performance</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Calcul des statistiques
+    trades = st.session_state.trade_history
+    total_trades = len(trades)
+    
+    if total_trades > 0:
+        winning_trades = len([t for t in trades if t["result"] == "GAGNANT"])
+        losing_trades = len([t for t in trades if t["result"] == "PERDANT"])
+        win_rate = int((winning_trades / total_trades * 100))
         
-        if total_trades > 0:
-            winning_trades = len([t for t in trades if t["result"] == "GAGNANT"])
-            losing_trades = len([t for t in trades if t["result"] == "PERDANT"])
-            win_rate = int((winning_trades / total_trades * 100))
+        # Calcul des pourcentages de respect des règles
+        sl_respected_count = len([t for t in trades if t["sl_respected"] == True])
+        tp_reached_count = len([t for t in trades if t["tp_reached"] == True])
+        hold_respected_count = len([t for t in trades if t.get("hold_respected", False) == True])
+        sl_respect_rate = int((sl_respected_count / total_trades * 100)) if total_trades > 0 else 0
+        tp_reach_rate = int((tp_reached_count / total_trades * 100)) if total_trades > 0 else 0
+        hold_respect_rate = int((hold_respected_count / total_trades * 100)) if total_trades > 0 else 0
+        
+        # Calcul du pourcentage total de respect des règles
+        total_rules_respected = 0
+        total_rules_possible = 0
+        
+        for trade in trades:
+            # Règles d'entrée validées
+            entry_rules = 0
+            if "s1" in trade["validated_rules"]:
+                entry_rules += len(trade["validated_rules"]["s1"])
+            if "s2" in trade["validated_rules"]:
+                entry_rules += len(trade["validated_rules"]["s2"])
+            total_rules_respected += entry_rules
             
-            # Calcul des pourcentages de respect des règles
-            sl_respected_count = len([t for t in trades if t["sl_respected"] == True])
-            tp_reached_count = len([t for t in trades if t["tp_reached"] == True])
-            sl_respect_rate = int((sl_respected_count / total_trades * 100)) if total_trades > 0 else 0
-            tp_reach_rate = int((tp_reached_count / total_trades * 100)) if total_trades > 0 else 0
+            # Conditions de trading (2 conditions)
+            if trade.get("bonnes_conditions"):
+                total_rules_respected += 1
+            if trade.get("annonces"):
+                total_rules_respected += 1
             
-            # Calcul du pourcentage total de respect des règles
-            total_rules_respected = 0
-            total_rules_possible = 0
+            # Règles de sortie (SL/TP/HOLD)
+            if trade["sl_respected"]:
+                total_rules_respected += 1
+            if trade["tp_reached"]:
+                total_rules_respected += 1
+            if trade.get("hold_respected", False):
+                total_rules_respected += 1
             
-            for trade in trades:
-                # Règles d'entrée validées
-                entry_rules = 0
-                if "s1" in trade["validated_rules"]:
-                    entry_rules += len(trade["validated_rules"]["s1"])
-                if "s2" in trade["validated_rules"]:
-                    entry_rules += len(trade["validated_rules"]["s2"])
-                total_rules_respected += entry_rules
-                
-                # Conditions de trading (2 conditions)
-                if trade.get("bonnes_conditions"):
-                    total_rules_respected += 1
-                if trade.get("annonces"):
-                    total_rules_respected += 1
-                
-                # Règles de sortie (SL/TP)
-                if trade["sl_respected"]:
-                    total_rules_respected += 1
-                if trade["tp_reached"]:
-                    total_rules_respected += 1
-                
-                total_rules_possible += entry_rules + 4  # +2 conditions + 2 pour SL et TP
-            
-            overall_respect_rate = int((total_rules_respected / total_rules_possible * 100)) if total_rules_possible > 0 else 0
-            
-            # Affichage des statistiques
-            s1, s2, s3, s4 = st.columns(4)
-            with s1:
-                st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--text);">{total_trades}</div><div class="stat-lbl" style="color:var(--text);">Trades</div></div>', unsafe_allow_html=True)
-            with s2:
-                st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--cyan);">{tp_reach_rate}%</div><div class="stat-lbl" style="color:var(--text);">TP Respect</div></div>', unsafe_allow_html=True)
-            with s3:
-                st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--red);">{sl_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">SL Respect</div></div>', unsafe_allow_html=True)
-            with s4:
-                st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--orange);">{overall_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">Règles Respect</div></div>', unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Filtres par date avec calendrier visuel
-            unique_dates = sorted(list(set(trade["date"] for trade in trades)))
-            
-            # Convertir les dates en objets datetime pour le calendrier
-            date_objects = []
-            for date_str in unique_dates:
-                try:
-                    date_objects.append(datetime.strptime(date_str, "%Y-%m-%d").date())
-                except:
-                    continue
-            
-            # Calendrier visuel pour sélectionner une date
-            selected_date_obj = st.date_input(
-                "📅 Sélectionner une date:",
-                value=None,
-                min_value=min(date_objects) if date_objects else None,
-                max_value=max(date_objects) if date_objects else None,
-                key="date_calendar"
-            )
-            
-            # Déterminer la date sélectionnée
-            if selected_date_obj:
-                selected_date = selected_date_obj.strftime("%Y-%m-%d")
-                filtered_trades = [trade for trade in trades if trade["date"] == selected_date]
-            else:
-                selected_date = None
-                filtered_trades = trades
-            
-            st.markdown("---")
-            
-            # Boutons d'action au-dessus du bouton Nouvelle session
-            col_export, col_reset = st.columns(2)
-            
-            with col_export:
-                # Préparer le CSV une seule fois pour éviter les problèmes
-                csv_data = convert_to_csv(trades)
-                st.download_button(
-                    label="📥 Exporter les données",
-                    data=csv_data,
-                    file_name=f"trading_export_{datetime.now(PARIS).strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            
-            with col_reset:
-                if st.button("🗑️ Réinitialiser les données", use_container_width=True, key="reset_all_data"):
-                    if st.session_state.trade_history:
-                        st.session_state.trade_history = []
-                        st.session_state.session_log = []
-                        st.success("✅ Toutes les données ont été réinitialisées avec succès!")
-                        st.rerun()
-                    else:
-                        st.info("ℹ️ Aucune donnée à réinitialiser")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Affichage des trades filtrés
-            if selected_date:
-                st.markdown(f'<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text-faint);letter-spacing:0.22em;margin-bottom:10px;">▸ HISTORIQUE DES TRADES - {selected_date}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text-faint);letter-spacing:0.22em;margin-bottom:10px;">▸ HISTORIQUE DES TRADES</div>', unsafe_allow_html=True)
-            
+            total_rules_possible += entry_rules + 5  # +2 conditions + 3 pour SL/TP/HOLD
+        
+        overall_respect_rate = int((total_rules_respected / total_rules_possible * 100)) if total_rules_possible > 0 else 0
+        
+        # Affichage des statistiques
+        s1, s2, s3, s4, s5 = st.columns(5)
+        with s1:
+            st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--text);">{total_trades}</div><div class="stat-lbl" style="color:var(--text);">Trades</div></div>', unsafe_allow_html=True)
+        with s2:
+            st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--cyan);">{tp_reach_rate}%</div><div class="stat-lbl" style="color:var(--text);">TP Respect</div></div>', unsafe_allow_html=True)
+        with s3:
+            st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--red);">{sl_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">SL Respect</div></div>', unsafe_allow_html=True)
+        with s4:
+            st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--cyan);">{hold_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">Tenue Respect</div></div>', unsafe_allow_html=True)
+        with s5:
+            st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--orange);">{overall_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">Règles Respect</div></div>', unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Filtres par date avec calendrier visuel
+        unique_dates = sorted(list(set(trade["date"] for trade in trades)))
+        
+        # Convertir les dates en objets datetime pour le calendrier
+        date_objects = []
+        for date_str in unique_dates:
+            try:
+                date_objects.append(datetime.strptime(date_str, "%Y-%m-%d").date())
+            except:
+                continue
+        
+        # Calendrier visuel pour sélectionner une date
+        selected_date_obj = st.date_input(
+            "📅 Sélectionner une date:",
+            value=None,
+            min_value=min(date_objects) if date_objects else None,
+            max_value=max(date_objects) if date_objects else None,
+            key="perf_date_filter"
+        )
+        
+        # Filtrer les trades par date
+        if selected_date_obj:
+            selected_date_str = selected_date_obj.strftime("%Y-%m-%d")
+            filtered_trades = [t for t in trades if t["date"] == selected_date_str]
+            st.markdown(f'<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text-faint);letter-spacing:0.22em;margin-bottom:10px;">▸ TRADES DU {selected_date_str.upper()}</div>', unsafe_allow_html=True)
+        else:
+            filtered_trades = trades
+            st.markdown('<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text-faint);letter-spacing:0.22em;margin-bottom:10px;">▸ TOUS LES TRADES</div>', unsafe_allow_html=True)
+        
+        # Affichage des trades filtrés
+        if filtered_trades:
             for trade in filtered_trades:
                 # Couleur selon résultat
                 result_color = "var(--cyan)" if trade["result"] == "GAGNANT" else "var(--red)"
@@ -808,9 +837,10 @@ if st.session_state.step == 0:
                 # if "s2" in trade["validated_rules"]:
                 #     rules_text.append(f"Timing: {len(trade['validated_rules']['s2'])}/3")
                 
-                # SL/TP
+                # SL/TP et HOLD
                 sl_text = "✅" if trade["sl_respected"] else "❌"
                 tp_text = "✅" if trade["tp_reached"] else "❌"
+                hold_text = "✅" if trade.get("hold_respected", False) else "❌"
                 
                 st.markdown(f"""
                 <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:8px;">
@@ -825,73 +855,67 @@ if st.session_state.step == 0:
                     <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);">
                         <div>📅 {trade['date']} | 📍 Session {trade['session']}</div>
                         <div>📋 Règles: {' | '.join(rules_text)}</div>
-                        <div>🛡️ SL: {sl_text} | 🎯 TP: {tp_text}</div>
+                        <div>🛡️ SL: {sl_text} | ⏱️ Tenue: {hold_text} | 🎯 TP: {tp_text}</div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("↺  Nouvelle session", use_container_width=True):
-            # Ne réinitialiser que les données de session courante, PAS l'historique
-            st.session_state.session_log = []
-            st.session_state.validated = {}
-            st.session_state.trade_active = False
-            st.session_state.summary_shown = False
-            st.session_state.can_enter = False
-            st.session_state.entry_time = None
-            st.session_state.direction = None
-            st.session_state.step = 0
-            # NE PAS effacer trade_history pour conserver l'historique
-            st.rerun()
-
-    # ── CHOIX DIRECTION ───────────────────────────────────
-    else:
-        if session_name is not None:
-            st.markdown('<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text-faint);letter-spacing:0.2em;text-align:center;margin-bottom:20px;">SÉLECTIONNER LA DIRECTION</div>', unsafe_allow_html=True)
-            st.markdown("""
-            <style>
-            div[data-testid="stButton"] > button { height:100px !important; font-size:18px !important; font-weight:700 !important; }
-            </style>""", unsafe_allow_html=True)
-            ca, cv = st.columns(2)
-            with ca:
-                if st.button("▲  ACHAT", use_container_width=True, key="btn_achat"):
-                    st.session_state.direction = "ACHAT"
-                    st.session_state.step = 1
-                    st.session_state.validated = {}
-                    st.session_state.can_enter = False
-                    log_event("DIRECTION", "ACHAT")
-                    st.rerun()
-            with cv:
-                if st.button("▼  VENTE", use_container_width=True, key="btn_vente"):
-                    st.session_state.direction = "VENTE"
-                    st.session_state.step = 1
-                    st.session_state.validated = {}
-                    st.session_state.can_enter = False
-                    log_event("DIRECTION", "VENTE")
-                    st.rerun()
-            
-            if st.session_state.session_log:
-                st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Bouton d'accès au rapport de session en fin de page
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("📊 Rapport de session", use_container_width=True, key="report_from_new_session"):
-                st.session_state.summary_shown = True
-                st.rerun()
         else:
             st.markdown("""
-            <div style="background:rgba(255,95,95,0.05);border:1px solid rgba(255,95,95,0.2);border-radius:10px;padding:32px;text-align:center;">
-                <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--red);">Hors session</div>
-                <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:10px;letter-spacing:0.12em;">
-                    EU 09:45–11:15 · US1 15:45–17:15 · US2 19:30–21:00
+            <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:24px; text-align:center;">
+                <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:600;color:var(--text-faint);">
+                    Aucun trade trouvé pour cette date
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # Bouton d'accès au rapport de session (toujours visible)
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("📊 Rapport de session", use_container_width=True, key="report_from_anywhere"):
-                st.session_state.summary_shown = True
+        
+        # Export CSV
+        csv_data = convert_to_csv(filtered_trades)
+        st.download_button(
+            label="📥 Exporter en CSV",
+            data=csv_data,
+            file_name=f"trading_performance_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+        
+        # Boutons d'action
+        col_reset, col_close = st.columns(2)
+        with col_reset:
+            if st.button("🗑️ Reset toutes les sessions", use_container_width=True, key="reset_all_sessions"):
+                st.session_state.trade_history = []
+                st.session_state.session_log = []
+                st.session_state.validated = {}
+                st.session_state.summary_shown = False
+                st.rerun()
+        with col_close:
+            if st.button("✕ Fermer le rapport", use_container_width=True):
+                st.session_state.summary_shown = False
+                st.rerun()
+    else:
+        st.markdown("""
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:32px; text-align:center;">
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:600;color:var(--text-faint);">
+                Aucun trade enregistré
+            </div>
+            <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-faint);margin-top:8px;">
+                Commence à trader pour voir tes statistiques
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Boutons d'action
+        col_reset, col_close = st.columns(2)
+        with col_reset:
+            if st.button("🗑️ Reset toutes les sessions", use_container_width=True, key="reset_all_sessions_empty"):
+                st.session_state.trade_history = []
+                st.session_state.session_log = []
+                st.session_state.validated = {}
+                st.session_state.summary_shown = False
+                st.rerun()
+        with col_close:
+            if st.button("✕ Fermer le rapport", use_container_width=True):
+                st.session_state.summary_shown = False
                 st.rerun()
 
 # ══════════════════════════════════════════════════════════════
@@ -1006,6 +1030,41 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Carte "Quand est-ce que je tiens ?"
+        if direction == "ACHAT":
+            hold_condition = "Quand la bleue foncée reste au dessus de la rouge"
+            hold_color = "var(--cyan)"
+            hold_icon = "🟢"
+        else:
+            hold_condition = "Quand la bleue claire reste en dessous de la rouge"
+            hold_color = "var(--red)"
+            hold_icon = "🔴"
+        
+        # État de la checkbox pour la règle "tiens"
+        hold_respected = st.session_state.get("hold_respect_trade", False)
+        hold_status = "✅ VALIDÉ" if hold_respected else "⏳ EN ATTENTE"
+        hold_status_color = "var(--cyan)" if hold_respected else "var(--orange)"
+        
+        st.markdown(f"""
+        <div class="sess-pill" style="border-left:4px solid {hold_color}; border-color:{hold_color}; background:rgba(59,255,160,0.05);">
+            <div class="sess-status" style="color:{hold_color};">⏱️ DURÉE DE POSITION</div>
+            <div class="sess-name" style="color:{hold_color};">Quand est-ce que je tiens ?</div>
+            <div style="background:rgba(255,255,255,0.1); border-radius:6px; padding:12px; margin:8px 0; text-align:center;">
+                <div style="font-family:'DM Mono',monospace;font-size:14px;color:{hold_color};font-weight:600;letter-spacing:0.05em;">
+                    {hold_icon} {hold_condition}
+                </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.1); border-radius:6px; padding:8px; margin:8px 0; text-align:center;">
+                <div style="font-family:'DM Mono',monospace;font-size:12px;color:{hold_status_color};font-weight:600;letter-spacing:0.1em;">
+                    {hold_status}
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Checkbox pour la règle "tiens"
+        hold_respected = st.checkbox("✓ J'ai respecté la durée de position", key="hold_respect_trade", help="Valide si tu as bien tenu la position selon la règle")
         
         st.write("---")
         
