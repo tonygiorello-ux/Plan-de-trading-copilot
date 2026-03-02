@@ -147,7 +147,7 @@ def get_tp_zone():
     zones = {
         "EU":  [time(9,45),  time(10,15), time(10,30), time(11,15)],
         "US1": [time(15,45), time(16,15), time(16,30), time(17,15)],
-        "US2": [time(19,30), time(20,0),  time(20,15), time(21,0)],
+        "US2": [time(19,30), time(20,0),  time(20,15), time(21, 0)],
     }
     g, o, r, se = [dt(t) for t in zones[session_name]]
     if   g <= now < o:  return "M15",   "#3BFFA0", o,  max(0, int((o  - now).total_seconds()))
@@ -1110,6 +1110,194 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
         # Checkbox pour la règle "tiens"
         hold_respected = st.checkbox("✓ J'ai respecté la durée de position", key="hold_respect_trade", help="Valide si tu as bien tenu la position selon la règle")
         
+        # ══════════════════════════════════════════════════════════════
+        # PANNEAU LED DYNAMIQUE - MODE POSITION
+        # ══════════════════════════════════════════════════════════════
+        
+        # Initialisation des états LED (si pas déjà fait)
+        if "led_index" not in st.session_state:
+            st.session_state.led_index = 0
+        if "last_led_update" not in st.session_state:
+            st.session_state.last_led_update = datetime.now(PARIS)
+        
+        # Logique de détermination des messages et couleur
+        led_messages = []
+        led_color = "var(--red)"  # Rouge par défaut
+        
+        # Cas 1: HORS SESSION (priorité absolue)
+        if session_name is None:
+            led_messages = [
+                "SESSION FERMÉE",
+                "PAS D'EXÉCUTION",
+                "REPOS STRATÉGIQUE",
+                "AUCUNE ACTION REQUISE"
+            ]
+            led_color = "var(--red)"
+            
+        # Cas 2: POSITION OUVERTE (priorité absolue)
+        elif st.session_state.trade_active:
+            led_messages = [
+                "POSITION OUVERTE",
+                "NE PAS INTERVENIR",
+                "LE RISQUE EST ACCEPTÉ",
+                "TU EXÉCUTES, TU N'ESPÈRES PAS",
+                "LE PLAN EST SUFFISANT"
+            ]
+            led_color = "var(--orange)"
+            
+            # Ajout des messages selon zone TP même en position active
+            tp_name, _, _, _ = get_tp_zone()
+            if tp_name == "M15":
+                # 🟠 ZONE TP M15 (Respiration large)
+                led_messages.extend([
+                    "RESPIRATION LARGE",
+                    "LAISSER L'ESPACE",
+                    "PAS DE GESTION PRÉMATURÉE",
+                    "LE PLAN EST SUFFISANT"
+                ])
+            elif tp_name == "M5–M1":
+                # 🟡 ZONE TP M5-M1 (Zone sensible)
+                led_messages.extend([
+                    "STABILITÉ INTERNE",
+                    "OBSERVER, NE PAS RÉAGIR",
+                    "AUCUN GESTE IMPULSIF",
+                    "PLUS LENT = PLUS PRÉCIS"
+                ])
+            elif tp_name == "M1":
+                # 🔴 ZONE TP M1 (Moment critique)
+                led_messages.extend([
+                    "LE PLAN DÉCIDE",
+                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
+                    "TU N'AS PLUS À DÉCIDER",
+                    "NE RIEN AJOUTER",
+                    "NE RIEN RETIRER"
+                ])
+            
+        # Cas 3: SESSION ACTIVE (sans position)
+        else:
+            # Calcul du temps restant
+            now_dt = datetime.now(PARIS)
+            end_dt = PARIS.localize(datetime.combine(now_dt.date(), end))
+            remaining_seconds = max(0, int((end_dt - now_dt).total_seconds()))
+            remaining_minutes = remaining_seconds / 60
+            
+            # Messages selon temps restant
+            if remaining_minutes > 20:
+                # 🔵 DÉBUT DE SESSION (> 20 min)
+                led_messages = [
+                    "STRUCTURE AVANT ACTION",
+                    "ATTENDRE EST UNE ACTION",
+                    "PAS DE BESOIN DE TRADE",
+                    "LE CALME EST TON EDGE",
+                    "L'ÉNERGIE RESTE BASSE"
+                ]
+                led_color = "var(--cyan)"
+            elif 10 <= remaining_minutes <= 20:
+                # 🟢 PHASE DÉCISIONNELLE (20-10 min)
+                led_messages = [
+                    "VALIDATION STRICTE",
+                    "ANTICIPER = ERREUR",
+                    "SIGNAL OU RIEN",
+                    "ALIGNEMENT OU ABSTENTION",
+                    "PROCESS COMPLET OU RIEN"
+                ]
+                led_color = "var(--orange)"
+            else:  # moins de 10 minutes
+                # 🔴 FIN DE SESSION (< 10 min)
+                led_messages = [
+                    "PAS DE DERNIER TRADE",
+                    "FIN PROPRE > TRADE SUPPLÉMENTAIRE",
+                    "LA DISCIPLINE PRIME",
+                    "L'IMPATIENCE COÛTE",
+                    "SORTIR PROPRE EST UNE VICTOIRE"
+                ]
+                led_color = "var(--red)"
+            
+            # Ajout des messages selon zone TP (priorité sur le temps)
+            tp_name, _, _, _ = get_tp_zone()
+            if tp_name == "M15":
+                # 🟠 ZONE TP M15 (Respiration large)
+                led_messages.extend([
+                    "RESPIRATION LARGE",
+                    "LAISSER L'ESPACE",
+                    "PAS DE GESTION PRÉMATURÉE",
+                    "LE PLAN EST SUFFISANT"
+                ])
+            elif tp_name == "M5–M1":
+                # 🟡 ZONE TP M5-M1 (Zone sensible)
+                led_messages.extend([
+                    "STABILITÉ INTERNE",
+                    "OBSERVER, NE PAS RÉAGIR",
+                    "AUCUN GESTE IMPULSIF",
+                    "PLUS LENT = PLUS PRÉCIS"
+                ])
+            elif tp_name == "M1":
+                # 🔴 ZONE TP M1 (Moment critique)
+                led_messages.extend([
+                    "LE PLAN DÉCIDE",
+                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
+                    "TU N'AS PLUS À DÉCIDER",
+                    "NE RIEN AJOUTER",
+                    "NE RIEN RETIRER"
+                ])
+        
+        # Rotation automatique des messages
+        current_time = datetime.now(PARIS)
+        if (current_time - st.session_state.last_led_update).total_seconds() >= 7:
+            st.session_state.led_index = (st.session_state.led_index + 1) % len(led_messages)
+            st.session_state.last_led_update = current_time
+        
+        # Message actuel
+        current_message = led_messages[st.session_state.led_index] if led_messages else "SYSTÈME"
+        
+        # Affichage du panneau LED (taille réduite) - ID unique pour position
+        st.markdown(f"""
+        <div id="led-panel-position" style="
+            background: #000000;
+            border: 2px solid {led_color};
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            text-align: center;
+            box-shadow: 0 0 15px {led_color}55, inset 0 0 15px {led_color}22;
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="
+                font-family: 'DM Mono', monospace;
+                font-size: 20px;
+                font-weight: 500;
+                color: #FFFFFF;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                text-shadow: 0 0 12px {led_color}77, 0 0 25px {led_color}44;
+                animation: led-glow-position 2s ease-in-out infinite alternate;
+            ">
+                {current_message}
+            </div>
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, {led_color}, transparent);
+                animation: scan-position 3s linear infinite;
+            "></div>
+        </div>
+        
+        <style>
+        @keyframes led-glow-position {{
+            0% {{ opacity: 0.8; }}
+            100% {{ opacity: 1; }}
+        }}
+        @keyframes scan-position {{
+            0% {{ transform: translateX(-100%); }}
+            100% {{ transform: translateX(100%); }}
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+        
         st.write("---")
         
         # Cartes SL et TP côte à côte - Style session avec police plus grande
@@ -1263,6 +1451,194 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
     # MODE GUIDAGE — Steps 1 & 2 (avant entrée)
     # ──────────────────────────────────────────────────────
     else:
+        # ══════════════════════════════════════════════════════════════
+        # PANNEAU LED DYNAMIQUE
+        # ══════════════════════════════════════════════════════════════
+        
+        # Initialisation des états LED
+        if "led_index" not in st.session_state:
+            st.session_state.led_index = 0
+        if "last_led_update" not in st.session_state:
+            st.session_state.last_led_update = datetime.now(PARIS)
+        
+        # Logique de détermination des messages et couleur
+        led_messages = []
+        led_color = "var(--red)"  # Rouge par défaut
+        
+        # Cas 1: HORS SESSION (priorité absolue)
+        if session_name is None:
+            led_messages = [
+                "SESSION FERMÉE",
+                "PAS D'EXÉCUTION",
+                "REPOS STRATÉGIQUE",
+                "AUCUNE ACTION REQUISE"
+            ]
+            led_color = "var(--red)"
+            
+        # Cas 2: POSITION OUVERTE (priorité absolue)
+        elif st.session_state.trade_active:
+            led_messages = [
+                "POSITION OUVERTE",
+                "NE PAS INTERVENIR",
+                "LE RISQUE EST ACCEPTÉ",
+                "TU EXÉCUTES, TU N'ESPÈRES PAS",
+                "LE PLAN EST SUFFISANT"
+            ]
+            led_color = "var(--orange)"
+            
+            # Ajout des messages selon zone TP même en position active
+            tp_name, _, _, _ = get_tp_zone()
+            if tp_name == "M15":
+                # 🟠 ZONE TP M15 (Respiration large)
+                led_messages.extend([
+                    "RESPIRATION LARGE",
+                    "LAISSER L'ESPACE",
+                    "PAS DE GESTION PRÉMATURÉE",
+                    "LE PLAN EST SUFFISANT"
+                ])
+            elif tp_name == "M5–M1":
+                # 🟡 ZONE TP M5-M1 (Zone sensible)
+                led_messages.extend([
+                    "STABILITÉ INTERNE",
+                    "OBSERVER, NE PAS RÉAGIR",
+                    "AUCUN GESTE IMPULSIF",
+                    "PLUS LENT = PLUS PRÉCIS"
+                ])
+            elif tp_name == "M1":
+                # 🔴 ZONE TP M1 (Moment critique)
+                led_messages.extend([
+                    "LE PLAN DÉCIDE",
+                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
+                    "TU N'AS PLUS À DÉCIDER",
+                    "NE RIEN AJOUTER",
+                    "NE RIEN RETIRER"
+                ])
+            
+        # Cas 3: SESSION ACTIVE (sans position)
+        else:
+            # Calcul du temps restant
+            now_dt = datetime.now(PARIS)
+            end_dt = PARIS.localize(datetime.combine(now_dt.date(), end))
+            remaining_seconds = max(0, int((end_dt - now_dt).total_seconds()))
+            remaining_minutes = remaining_seconds / 60
+            
+            # Messages selon temps restant
+            if remaining_minutes > 20:
+                # 🔵 DÉBUT DE SESSION (> 20 min)
+                led_messages = [
+                    "STRUCTURE AVANT ACTION",
+                    "ATTENDRE EST UNE ACTION",
+                    "PAS DE BESOIN DE TRADE",
+                    "LE CALME EST TON EDGE",
+                    "L'ÉNERGIE RESTE BASSE"
+                ]
+                led_color = "var(--cyan)"
+            elif 10 <= remaining_minutes <= 20:
+                # 🟢 PHASE DÉCISIONNELLE (20-10 min)
+                led_messages = [
+                    "VALIDATION STRICTE",
+                    "ANTICIPER = ERREUR",
+                    "SIGNAL OU RIEN",
+                    "ALIGNEMENT OU ABSTENTION",
+                    "PROCESS COMPLET OU RIEN"
+                ]
+                led_color = "var(--orange)"
+            else:  # moins de 10 minutes
+                # 🔴 FIN DE SESSION (< 10 min)
+                led_messages = [
+                    "PAS DE DERNIER TRADE",
+                    "FIN PROPRE > TRADE SUPPLÉMENTAIRE",
+                    "LA DISCIPLINE PRIME",
+                    "L'IMPATIENCE COÛTE",
+                    "SORTIR PROPRE EST UNE VICTOIRE"
+                ]
+                led_color = "var(--red)"
+            
+            # Ajout des messages selon zone TP (priorité sur le temps)
+            tp_name, _, _, _ = get_tp_zone()
+            if tp_name == "M15":
+                # 🟠 ZONE TP M15 (Respiration large)
+                led_messages.extend([
+                    "RESPIRATION LARGE",
+                    "LAISSER L'ESPACE",
+                    "PAS DE GESTION PRÉMATURÉE",
+                    "LE PLAN EST SUFFISANT"
+                ])
+            elif tp_name == "M5–M1":
+                # 🟡 ZONE TP M5-M1 (Zone sensible)
+                led_messages.extend([
+                    "STABILITÉ INTERNE",
+                    "OBSERVER, NE PAS RÉAGIR",
+                    "AUCUN GESTE IMPULSIF",
+                    "PLUS LENT = PLUS PRÉCIS"
+                ])
+            elif tp_name == "M1":
+                # 🔴 ZONE TP M1 (Moment critique)
+                led_messages.extend([
+                    "LE PLAN DÉCIDE",
+                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
+                    "TU N'AS PLUS À DÉCIDER",
+                    "NE RIEN AJOUTER",
+                    "NE RIEN RETIRER"
+                ])
+        
+        # Rotation automatique des messages
+        current_time = datetime.now(PARIS)
+        if (current_time - st.session_state.last_led_update).total_seconds() >= 7:
+            st.session_state.led_index = (st.session_state.led_index + 1) % len(led_messages)
+            st.session_state.last_led_update = current_time
+        
+        # Message actuel
+        current_message = led_messages[st.session_state.led_index] if led_messages else "SYSTÈME"
+        
+        # Affichage du panneau LED (taille réduite) - ID unique pour guidage
+        st.markdown(f"""
+        <div id="led-panel-guidage" style="
+            background: #000000;
+            border: 2px solid {led_color};
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            text-align: center;
+            box-shadow: 0 0 15px {led_color}55, inset 0 0 15px {led_color}22;
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="
+                font-family: 'DM Mono', monospace;
+                font-size: 20px;
+                font-weight: 500;
+                color: #FFFFFF;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                text-shadow: 0 0 12px {led_color}77, 0 0 25px {led_color}44;
+                animation: led-glow-guidage 2s ease-in-out infinite alternate;
+            ">
+                {current_message}
+            </div>
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, {led_color}, transparent);
+                animation: scan-guidage 3s linear infinite;
+            "></div>
+        </div>
+        
+        <style>
+        @keyframes led-glow-guidage {{
+            0% {{ opacity: 0.8; }}
+            100% {{ opacity: 1; }}
+        }}
+        @keyframes scan-guidage {{
+            0% {{ transform: translateX(-100%); }}
+            100% {{ transform: translateX(100%); }}
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+        
         # Badge direction + dots
         badge_cls = "dir-achat" if direction == "ACHAT" else "dir-vente"
         badge_sym = "▲ ACHAT"  if direction == "ACHAT" else "▼ VENTE"
