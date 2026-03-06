@@ -613,7 +613,6 @@ date_str = datetime.now(PARIS).strftime("%d %b %Y").upper()
 c_title, c_clock = st.columns([3, 1])
 with c_title:
     st.markdown('<p class="hud-eyebrow">◈ Copilot de Trading</p>', unsafe_allow_html=True)
-    st.markdown('<p class="hud-title">Plan de Trading</p>', unsafe_allow_html=True)
 with c_clock:
     st.markdown(f'<p class="live-date">{date_str}</p><p class="live-clock">{now_str}</p>', unsafe_allow_html=True)
 
