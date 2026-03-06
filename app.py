@@ -1127,7 +1127,7 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             tp_status = "✅ VALIDÉ" if tp_reached else "⏳ EN ATTENTE"
             tp_status_color = "var(--cyan)" if tp_reached else "var(--orange)"
             
-            tp_description = "Sortie sur le prochain point de friction ,sur les UT M1 ou M5 :<br><br>Bande de Bollinger 1 ou 2, moyenne des bande de Bollinger, 369."
+            tp_description = "Sortie sur le prochain point de friction ,sur les UT's M1 ou M5 :<br><br>Bande de Bollinger 1 ou 2, moyenne des bande de Bollinger, 369."
             
             st.markdown(f"""
             <div class="sess-pill" style="border-left:4px solid var(--cyan); border-color:var(--cyan); background:rgba(59,255,160,0.05);">
