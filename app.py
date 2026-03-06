@@ -47,7 +47,7 @@ st_autorefresh(interval=1000, key="timer_refresh")
 SESSIONS = [
     ("EU",  time(9, 45),  time(11, 15)),
     ("US1", time(15, 45), time(17, 15)),
-    ("US2", time(19, 30), time(21,  59)),
+    ("US2", time(19, 30), time(21,  00)),
 ]
 
 def get_active_session():
