@@ -47,7 +47,7 @@ st_autorefresh(interval=1000, key="timer_refresh")
 SESSIONS = [
     ("EU",  time(9, 45),  time(11, 15)),
     ("US1", time(15, 45), time(17, 15)),
-    ("US2", time(19, 30), time(21,  0)),
+    ("US2", time(19, 30), time(21,  59)),
 ]
 
 def get_active_session():
@@ -62,6 +62,7 @@ session_name, start, end = get_active_session()
 # ══════════════════════════════════════════════
 # STATE
 # ══════════════════════════════════════════════
+# -*- coding: utf-8 -*-
 # Charger les données sauvegardées au démarrage
 saved_trade_history, saved_session_log, saved_validated = load_data()
 
@@ -147,7 +148,7 @@ def get_tp_zone():
     zones = {
         "EU":  [time(9,45),  time(10,15), time(10,30), time(11,15)],
         "US1": [time(15,45), time(16,15), time(16,30), time(17,15)],
-        "US2": [time(19,30), time(20,0),  time(20,15), time(21, 0)],
+        "US2": [time(19,30), time(20,0),  time(20,15), time(21,59)],
     }
     g, o, r, se = [dt(t) for t in zones[session_name]]
     if   g <= now < o:  return "M15",   "#3BFFA0", o,  max(0, int((o  - now).total_seconds()))
@@ -291,10 +292,10 @@ st.markdown("""
 }
 .timer-big.warn  { color:var(--orange) !important; text-shadow:0 0 20px rgba(255,184,0,0.4) !important; }
 .timer-big.danger{ color:var(--red)    !important; text-shadow:0 0 20px rgba(255,95,95,0.4)  !important; }
-.progress-track {
+/* .progress-track {
     height:4px; background:var(--border);
-    border-radius:2px; margin:12px 0 6px; overflow:hidden;
-}
+    border-radius:2px; margin:12px 0 6px;
+} */
 
 /* ── STEP HEADER ── */
 .step-hdr {
@@ -475,7 +476,7 @@ st.markdown("""
 .stat-box {
     background:var(--surface2); border:1px solid var(--border);
     border-radius:10px; padding:18px; text-align:center;
-    overflow: hidden; min-height: 90px;
+    min-height: 90px;
 }
 .stat-num { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; line-height:1; word-wrap: break-word; }
 .stat-lbl { font-family:'DM Mono',monospace; font-size:10px; color:var(--text-faint); letter-spacing:0.2em; margin-top:6px; text-transform:uppercase; }
@@ -605,7 +606,6 @@ date_str = datetime.now(PARIS).strftime("%d %b %Y").upper()
 c_title, c_clock = st.columns([3, 1])
 with c_title:
     st.markdown('<p class="hud-eyebrow">◈ Copilot de Trading</p>', unsafe_allow_html=True)
-    st.markdown('<p class="hud-title">Plan de Trading</p>', unsafe_allow_html=True)
 with c_clock:
     st.markdown(f'<p class="live-date">{date_str}</p><p class="live-clock">{now_str}</p>', unsafe_allow_html=True)
 
@@ -636,7 +636,7 @@ st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
 # ══════════════════════════════════════════════
 # TIMERS
 # ══════════════════════════════════════════════
-c_sess, c_tp = st.columns(2)
+c_sess = st.container()
 
 with c_sess:
     if session_name is not None:
@@ -665,37 +665,6 @@ with c_sess:
             <div class="timer-label">⏱ Décompte Session</div>
             <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--text-faint);margin-top:8px;">Hors session</div>
             <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:6px;letter-spacing:0.12em;">En attente d'ouverture</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-with c_tp:
-    tp_name, tp_color, tp_end_dt, tp_rem = get_tp_zone()
-    if tp_name:
-        m_tp, s_tp = tp_rem // 60, tp_rem % 60
-        durations  = {"M15": 1800, "M5–M1": 900, "M1": 2700}
-        zone_tot   = durations.get(tp_name, 1800)
-        zone_pct   = max(0, min(100, (1 - tp_rem / zone_tot) * 100))
-        st.markdown(f"""
-        <div class="card" style="border-left:3px solid {tp_color};">
-            <div class="timer-label" style="color:{tp_color}aa;">🎯 Zone TP Active</div>
-            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:{tp_color};margin:6px 0;text-shadow:0 0 12px {tp_color}66;">
-                Boll {tp_name}
-            </div>
-            <div class="progress-track">
-                <div style="width:{zone_pct:.1f}%;height:100%;background:{tp_color};border-radius:2px;box-shadow:0 0 6px {tp_color}88;transition:width 1s linear;"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-faint);letter-spacing:0.15em;">TEMPS RESTANT</div>
-                <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:500;color:{tp_color};text-shadow:0 0 10px {tp_color}66;">{m_tp:02d}:{s_tp:02d}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="card">
-            <div class="timer-label">🎯 Zone TP</div>
-            <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:var(--text-faint);margin-top:8px;">En attente de zone</div>
-            <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:6px;letter-spacing:0.12em;">Hors plage TP active</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -793,7 +762,9 @@ if st.session_state.summary_shown and st.session_state.step == 0:
             if "s1" in trade["validated_rules"]:
                 entry_rules += len(trade["validated_rules"]["s1"])
             if "s2" in trade["validated_rules"]:
-                entry_rules += len(trade["validated_rules"]["s2"])
+                # Compter uniquement r1 et r2 (r3 est optionnelle)
+                s2_rules = [r for r in trade["validated_rules"]["s2"] if r in ["r1", "r2"]]
+                entry_rules += len(s2_rules)
             total_rules_respected += entry_rules
             
             # Conditions de trading (2 conditions)
@@ -810,7 +781,7 @@ if st.session_state.summary_shown and st.session_state.step == 0:
             if trade.get("hold_respected", False):
                 total_rules_respected += 1
             
-            total_rules_possible += entry_rules + 5  # +2 conditions + 3 pour SL/TP/HOLD
+            total_rules_possible += entry_rules + 3  # +2 conditions + 3 pour SL/TP/HOLD (r3 timing est optionnelle)
         
         overall_respect_rate = int((total_rules_respected / total_rules_possible * 100)) if total_rules_possible > 0 else 0
         
@@ -984,10 +955,14 @@ if st.session_state.step == 1 and st.session_state.direction is not None:
         border_c = {"cyan": "rgba(59,255,160,0.2)", "orange": "rgba(255,184,0,0.2)", "red": "rgba(255,95,95,0.2)"}[color]
         text_c = {"cyan": "#C8F7E5", "orange": "#FFF0C0", "red": "#FFD5D5"}[color]
         
+        # Créer le lien HTML séparément pour éviter les backslashes dans f-string
+        lien_forex = '<div style="margin-top:8px;"><a href="https://www.forexfactory.com/" target="_blank" style="display:inline-block;font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text-faint);text-decoration:none;padding:4px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:3px;transition:all 0.2s ease;" onmouseover="this.style.background=\'rgba(255,255,255,0.15)\'; this.style.borderColor=\'rgba(255,255,255,0.3)\'; this.style.color=\'var(--text)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'; this.style.borderColor=\'rgba(255,255,255,0.2)\'; this.style.color=\'var(--text-faint)\'">📅 Vérifier annonces</a></div>'
+        
         st.markdown(f"""
         <div class="rule {color} {('done' if done else '')}" style="background:{bg_c};border:1px solid {border_c};border-left:3px solid {icon_c};color:{text_c};">
             <span class="rule-icon">📋</span>
             {text}
+            {lien_forex if rk == 'annonces' else ''}
         </div>
         """, unsafe_allow_html=True)
         
@@ -1092,7 +1067,7 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
         
         st.markdown(f"""
         <div class="sess-pill" style="border-left:4px solid {hold_color}; border-color:{hold_color}; background:rgba(59,255,160,0.05);">
-            <div class="sess-status" style="color:{hold_color};">⏱️ DURÉE DE POSITION</div>
+            <div class="sess-status" style="color:{hold_color};">⏱️ TENUE DE POSITION</div>
             <div class="sess-name" style="color:{hold_color};">Quand est-ce que je tiens ?</div>
             <div style="background:rgba(255,255,255,0.1); border-radius:6px; padding:12px; margin:8px 0; text-align:center;">
                 <div style="font-family:'DM Mono',monospace;font-size:14px;color:{hold_color};font-weight:600;letter-spacing:0.05em;">
@@ -1108,197 +1083,9 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
         """, unsafe_allow_html=True)
         
         # Checkbox pour la règle "tiens"
-        hold_respected = st.checkbox("✓ J'ai respecté la durée de position", key="hold_respect_trade", help="Valide si tu as bien tenu la position selon la règle")
+        hold_respected = st.checkbox("✓ J'ai respecté la tenue de position", key="hold_respect_trade", help="Valide si tu as bien tenu la position selon la règle")
         
-        # ══════════════════════════════════════════════════════════════
-        # PANNEAU LED DYNAMIQUE - MODE POSITION
-        # ══════════════════════════════════════════════════════════════
-        
-        # Initialisation des états LED (si pas déjà fait)
-        if "led_index" not in st.session_state:
-            st.session_state.led_index = 0
-        if "last_led_update" not in st.session_state:
-            st.session_state.last_led_update = datetime.now(PARIS)
-        
-        # Logique de détermination des messages et couleur
-        led_messages = []
-        led_color = "var(--red)"  # Rouge par défaut
-        
-        # Cas 1: HORS SESSION (priorité absolue)
-        if session_name is None:
-            led_messages = [
-                "SESSION FERMÉE",
-                "PAS D'EXÉCUTION",
-                "REPOS STRATÉGIQUE",
-                "AUCUNE ACTION REQUISE"
-            ]
-            led_color = "var(--red)"
-            
-        # Cas 2: POSITION OUVERTE (priorité absolue)
-        elif st.session_state.trade_active:
-            led_messages = [
-                "POSITION OUVERTE",
-                "NE PAS INTERVENIR",
-                "LE RISQUE EST ACCEPTÉ",
-                "TU EXÉCUTES, TU N'ESPÈRES PAS",
-                "LE PLAN EST SUFFISANT"
-            ]
-            led_color = "var(--orange)"
-            
-            # Ajout des messages selon zone TP même en position active
-            tp_name, _, _, _ = get_tp_zone()
-            if tp_name == "M15":
-                # 🟠 ZONE TP M15 (Respiration large)
-                led_messages.extend([
-                    "RESPIRATION LARGE",
-                    "LAISSER L'ESPACE",
-                    "PAS DE GESTION PRÉMATURÉE",
-                    "LE PLAN EST SUFFISANT"
-                ])
-            elif tp_name == "M5–M1":
-                # 🟡 ZONE TP M5-M1 (Zone sensible)
-                led_messages.extend([
-                    "STABILITÉ INTERNE",
-                    "OBSERVER, NE PAS RÉAGIR",
-                    "AUCUN GESTE IMPULSIF",
-                    "PLUS LENT = PLUS PRÉCIS"
-                ])
-            elif tp_name == "M1":
-                # 🔴 ZONE TP M1 (Moment critique)
-                led_messages.extend([
-                    "LE PLAN DÉCIDE",
-                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
-                    "TU N'AS PLUS À DÉCIDER",
-                    "NE RIEN AJOUTER",
-                    "NE RIEN RETIRER"
-                ])
-            
-        # Cas 3: SESSION ACTIVE (sans position)
-        else:
-            # Calcul du temps restant
-            now_dt = datetime.now(PARIS)
-            end_dt = PARIS.localize(datetime.combine(now_dt.date(), end))
-            remaining_seconds = max(0, int((end_dt - now_dt).total_seconds()))
-            remaining_minutes = remaining_seconds / 60
-            
-            # Messages selon temps restant
-            if remaining_minutes > 20:
-                # 🔵 DÉBUT DE SESSION (> 20 min)
-                led_messages = [
-                    "STRUCTURE AVANT ACTION",
-                    "ATTENDRE EST UNE ACTION",
-                    "PAS DE BESOIN DE TRADE",
-                    "LE CALME EST TON EDGE",
-                    "L'ÉNERGIE RESTE BASSE"
-                ]
-                led_color = "var(--cyan)"
-            elif 10 <= remaining_minutes <= 20:
-                # 🟢 PHASE DÉCISIONNELLE (20-10 min)
-                led_messages = [
-                    "VALIDATION STRICTE",
-                    "ANTICIPER = ERREUR",
-                    "SIGNAL OU RIEN",
-                    "ALIGNEMENT OU ABSTENTION",
-                    "PROCESS COMPLET OU RIEN"
-                ]
-                led_color = "var(--orange)"
-            else:  # moins de 10 minutes
-                # 🔴 FIN DE SESSION (< 10 min)
-                led_messages = [
-                    "PAS DE DERNIER TRADE",
-                    "FIN PROPRE > TRADE SUPPLÉMENTAIRE",
-                    "LA DISCIPLINE PRIME",
-                    "L'IMPATIENCE COÛTE",
-                    "SORTIR PROPRE EST UNE VICTOIRE"
-                ]
-                led_color = "var(--red)"
-            
-            # Ajout des messages selon zone TP (priorité sur le temps)
-            tp_name, _, _, _ = get_tp_zone()
-            if tp_name == "M15":
-                # 🟠 ZONE TP M15 (Respiration large)
-                led_messages.extend([
-                    "RESPIRATION LARGE",
-                    "LAISSER L'ESPACE",
-                    "PAS DE GESTION PRÉMATURÉE",
-                    "LE PLAN EST SUFFISANT"
-                ])
-            elif tp_name == "M5–M1":
-                # 🟡 ZONE TP M5-M1 (Zone sensible)
-                led_messages.extend([
-                    "STABILITÉ INTERNE",
-                    "OBSERVER, NE PAS RÉAGIR",
-                    "AUCUN GESTE IMPULSIF",
-                    "PLUS LENT = PLUS PRÉCIS"
-                ])
-            elif tp_name == "M1":
-                # 🔴 ZONE TP M1 (Moment critique)
-                led_messages.extend([
-                    "LE PLAN DÉCIDE",
-                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
-                    "TU N'AS PLUS À DÉCIDER",
-                    "NE RIEN AJOUTER",
-                    "NE RIEN RETIRER"
-                ])
-        
-        # Rotation automatique des messages
-        current_time = datetime.now(PARIS)
-        if (current_time - st.session_state.last_led_update).total_seconds() >= 7:
-            st.session_state.led_index = (st.session_state.led_index + 1) % len(led_messages)
-            st.session_state.last_led_update = current_time
-        
-        # Message actuel
-        current_message = led_messages[st.session_state.led_index] if led_messages else "SYSTÈME"
-        
-        # Affichage du panneau LED (taille réduite) - ID unique pour position
-        st.markdown(f"""
-        <div id="led-panel-position" style="
-            background: #000000;
-            border: 2px solid {led_color};
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin: 16px 0;
-            text-align: center;
-            box-shadow: 0 0 15px {led_color}55, inset 0 0 15px {led_color}22;
-            position: relative;
-            overflow: hidden;
-        ">
-            <div style="
-                font-family: 'DM Mono', monospace;
-                font-size: 20px;
-                font-weight: 500;
-                color: #FFFFFF;
-                text-transform: uppercase;
-                letter-spacing: 0.12em;
-                text-shadow: 0 0 12px {led_color}77, 0 0 25px {led_color}44;
-                animation: led-glow-position 2s ease-in-out infinite alternate;
-            ">
-                {current_message}
-            </div>
-            <div style="
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 2px;
-                background: linear-gradient(90deg, transparent, {led_color}, transparent);
-                animation: scan-position 3s linear infinite;
-            "></div>
-        </div>
-        
-        <style>
-        @keyframes led-glow-position {{
-            0% {{ opacity: 0.8; }}
-            100% {{ opacity: 1; }}
-        }}
-        @keyframes scan-position {{
-            0% {{ transform: translateX(-100%); }}
-            100% {{ transform: translateX(100%); }}
-        }}
-        </style>
-        """, unsafe_allow_html=True)
-        
-        st.write("---")
+        st.markdown("<br>", unsafe_allow_html=True)
         
         # Cartes SL et TP côte à côte - Style session avec police plus grande
         tp_name, tp_color, tp_end_dt, tp_rem = get_tp_zone()
@@ -1372,273 +1159,40 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             # Checkbox TP sous la carte
             st.checkbox("🎯 Take Profit atteint", key="tp_reach_trade")
             
-            # Timer TP sous la carte TP
-            if tp_name:
-                m_tp, s_tp = tp_rem // 60, tp_rem % 60
-                durations = {"M15": 1800, "M5–M1": 900, "M1": 2700}
-                zone_tot = durations.get(tp_name, 1800)
-                zone_pct = max(0, min(100, (1 - tp_rem / zone_tot) * 100))
-                
-                st.markdown(f"""
-                <div style="margin: 8px 0; padding: 12px; background: rgba(255,255,255,0.05); 
-                            border-radius: 8px; border: 1px solid rgba(59,255,160,0.2);">
-                    <div style="color: rgba(59,255,160,0.7); font-family: 'DM Mono', monospace; font-size: 10px; 
-                               letter-spacing: 0.15em; margin-bottom: 4px;">ZONE TP ACTIVE</div>
-                    <div style="font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; 
-                               color: #3BFFA0; margin-bottom: 6px;">Boll {tp_name}</div>
-                    <div style="background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; margin-bottom: 6px;">
-                        <div style="width: {zone_pct:.1f}%; height: 100%; background: #3BFFA0; 
-                                    border-radius: 2px; transition: width 1s linear;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="color: #8895AA; font-family: 'DM Mono', monospace; font-size: 10px; 
-                                   letter-spacing: 0.15em;">TEMPS RESTANT</div>
-                        <div style="color: #3BFFA0; font-family: 'DM Mono', monospace; font-size: 20px; 
-                                   font-weight: 500;">{m_tp:02d}:{s_tp:02d}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="margin: 8px 0; padding: 12px; background: rgba(255,255,255,0.05); 
-                            border-radius: 8px; border: 1px solid rgba(255,184,0,0.2);">
-                    <div style="color: #8895AA; font-family: 'DM Mono', monospace; font-size: 10px; 
-                               letter-spacing: 0.15em; margin-bottom: 4px;">ZONE TP</div>
-                    <div style="color: #8895AA; font-family: 'Syne', sans-serif; font-size: 16px; 
-                               font-weight: 700; margin-bottom: 6px;">En attente de zone</div>
-                    <div style="color: #8895AA; font-family: 'DM Mono', monospace; font-size: 11px;">
-                        Hors plage TP active
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        st.write("---")
-        
-        # Boutons de sortie
-        st.write("**CLÔTURER LA POSITION**")
-        
-        st.write("---")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✅ Sortie Gagnante", use_container_width=True, key="exit_win"):
-                sl_respected = st.session_state.get("sl_respect_trade", False)
-                tp_reached = st.session_state.get("tp_reach_trade", False)
-                record_trade_exit(True, sl_respected, tp_reached)
-                log_event("SORTI_GAGNANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
-                st.session_state.trade_active = False
-                st.session_state.step = 0
-                st.session_state.direction = None
-                st.session_state.validated = {}
-                st.session_state.entry_time = None
-                st.session_state.can_enter = False
-                st.rerun()
-        with col2:
-            if st.button("❌ Sortie Perdante", use_container_width=True, key="exit_loss"):
-                sl_respected = st.session_state.get("sl_respect_trade", False)
-                tp_reached = st.session_state.get("tp_reach_trade", False)
-                record_trade_exit(False, sl_respected, tp_reached)
-                log_event("SORTI_PERDANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
-                st.session_state.trade_active = False
-                st.session_state.step = 0
-                st.session_state.direction = None
-                st.session_state.validated = {}
-                st.session_state.entry_time = None
-                st.session_state.can_enter = False
-                st.rerun()
+            st.write("---")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Sortie Gagnante", use_container_width=True, key="exit_win"):
+                    sl_respected = st.session_state.get("sl_respect_trade", False)
+                    tp_reached = st.session_state.get("tp_reach_trade", False)
+                    record_trade_exit(True, sl_respected, tp_reached)
+                    log_event("SORTI_GAGNANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
+                    st.session_state.trade_active = False
+                    st.session_state.step = 0
+                    st.session_state.direction = None
+                    st.session_state.validated = {}
+                    st.session_state.entry_time = None
+                    st.session_state.can_enter = False
+                    st.rerun()
+            with col2:
+                if st.button("❌ Sortie Perdante", use_container_width=True, key="exit_loss"):
+                    sl_respected = st.session_state.get("sl_respect_trade", False)
+                    tp_reached = st.session_state.get("tp_reach_trade", False)
+                    record_trade_exit(False, sl_respected, tp_reached)
+                    log_event("SORTI_PERDANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
+                    st.session_state.trade_active = False
+                    st.session_state.step = 0
+                    st.session_state.direction = None
+                    st.session_state.validated = {}
+                    st.session_state.entry_time = None
+                    st.session_state.can_enter = False
+                    st.rerun()
 
     # ──────────────────────────────────────────────────────
     # MODE GUIDAGE — Steps 1 & 2 (avant entrée)
     # ──────────────────────────────────────────────────────
     else:
-        # ══════════════════════════════════════════════════════════════
-        # PANNEAU LED DYNAMIQUE
-        # ══════════════════════════════════════════════════════════════
-        
-        # Initialisation des états LED
-        if "led_index" not in st.session_state:
-            st.session_state.led_index = 0
-        if "last_led_update" not in st.session_state:
-            st.session_state.last_led_update = datetime.now(PARIS)
-        
-        # Logique de détermination des messages et couleur
-        led_messages = []
-        led_color = "var(--red)"  # Rouge par défaut
-        
-        # Cas 1: HORS SESSION (priorité absolue)
-        if session_name is None:
-            led_messages = [
-                "SESSION FERMÉE",
-                "PAS D'EXÉCUTION",
-                "REPOS STRATÉGIQUE",
-                "AUCUNE ACTION REQUISE"
-            ]
-            led_color = "var(--red)"
-            
-        # Cas 2: POSITION OUVERTE (priorité absolue)
-        elif st.session_state.trade_active:
-            led_messages = [
-                "POSITION OUVERTE",
-                "NE PAS INTERVENIR",
-                "LE RISQUE EST ACCEPTÉ",
-                "TU EXÉCUTES, TU N'ESPÈRES PAS",
-                "LE PLAN EST SUFFISANT"
-            ]
-            led_color = "var(--orange)"
-            
-            # Ajout des messages selon zone TP même en position active
-            tp_name, _, _, _ = get_tp_zone()
-            if tp_name == "M15":
-                # 🟠 ZONE TP M15 (Respiration large)
-                led_messages.extend([
-                    "RESPIRATION LARGE",
-                    "LAISSER L'ESPACE",
-                    "PAS DE GESTION PRÉMATURÉE",
-                    "LE PLAN EST SUFFISANT"
-                ])
-            elif tp_name == "M5–M1":
-                # 🟡 ZONE TP M5-M1 (Zone sensible)
-                led_messages.extend([
-                    "STABILITÉ INTERNE",
-                    "OBSERVER, NE PAS RÉAGIR",
-                    "AUCUN GESTE IMPULSIF",
-                    "PLUS LENT = PLUS PRÉCIS"
-                ])
-            elif tp_name == "M1":
-                # 🔴 ZONE TP M1 (Moment critique)
-                led_messages.extend([
-                    "LE PLAN DÉCIDE",
-                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
-                    "TU N'AS PLUS À DÉCIDER",
-                    "NE RIEN AJOUTER",
-                    "NE RIEN RETIRER"
-                ])
-            
-        # Cas 3: SESSION ACTIVE (sans position)
-        else:
-            # Calcul du temps restant
-            now_dt = datetime.now(PARIS)
-            end_dt = PARIS.localize(datetime.combine(now_dt.date(), end))
-            remaining_seconds = max(0, int((end_dt - now_dt).total_seconds()))
-            remaining_minutes = remaining_seconds / 60
-            
-            # Messages selon temps restant
-            if remaining_minutes > 20:
-                # 🔵 DÉBUT DE SESSION (> 20 min)
-                led_messages = [
-                    "STRUCTURE AVANT ACTION",
-                    "ATTENDRE EST UNE ACTION",
-                    "PAS DE BESOIN DE TRADE",
-                    "LE CALME EST TON EDGE",
-                    "L'ÉNERGIE RESTE BASSE"
-                ]
-                led_color = "var(--cyan)"
-            elif 10 <= remaining_minutes <= 20:
-                # 🟢 PHASE DÉCISIONNELLE (20-10 min)
-                led_messages = [
-                    "VALIDATION STRICTE",
-                    "ANTICIPER = ERREUR",
-                    "SIGNAL OU RIEN",
-                    "ALIGNEMENT OU ABSTENTION",
-                    "PROCESS COMPLET OU RIEN"
-                ]
-                led_color = "var(--orange)"
-            else:  # moins de 10 minutes
-                # 🔴 FIN DE SESSION (< 10 min)
-                led_messages = [
-                    "PAS DE DERNIER TRADE",
-                    "FIN PROPRE > TRADE SUPPLÉMENTAIRE",
-                    "LA DISCIPLINE PRIME",
-                    "L'IMPATIENCE COÛTE",
-                    "SORTIR PROPRE EST UNE VICTOIRE"
-                ]
-                led_color = "var(--red)"
-            
-            # Ajout des messages selon zone TP (priorité sur le temps)
-            tp_name, _, _, _ = get_tp_zone()
-            if tp_name == "M15":
-                # 🟠 ZONE TP M15 (Respiration large)
-                led_messages.extend([
-                    "RESPIRATION LARGE",
-                    "LAISSER L'ESPACE",
-                    "PAS DE GESTION PRÉMATURÉE",
-                    "LE PLAN EST SUFFISANT"
-                ])
-            elif tp_name == "M5–M1":
-                # 🟡 ZONE TP M5-M1 (Zone sensible)
-                led_messages.extend([
-                    "STABILITÉ INTERNE",
-                    "OBSERVER, NE PAS RÉAGIR",
-                    "AUCUN GESTE IMPULSIF",
-                    "PLUS LENT = PLUS PRÉCIS"
-                ])
-            elif tp_name == "M1":
-                # 🔴 ZONE TP M1 (Moment critique)
-                led_messages.extend([
-                    "LE PLAN DÉCIDE",
-                    "PAS D'AJUSTEMENT ÉMOTIONNEL",
-                    "TU N'AS PLUS À DÉCIDER",
-                    "NE RIEN AJOUTER",
-                    "NE RIEN RETIRER"
-                ])
-        
-        # Rotation automatique des messages
-        current_time = datetime.now(PARIS)
-        if (current_time - st.session_state.last_led_update).total_seconds() >= 7:
-            st.session_state.led_index = (st.session_state.led_index + 1) % len(led_messages)
-            st.session_state.last_led_update = current_time
-        
-        # Message actuel
-        current_message = led_messages[st.session_state.led_index] if led_messages else "SYSTÈME"
-        
-        # Affichage du panneau LED (taille réduite) - ID unique pour guidage
-        st.markdown(f"""
-        <div id="led-panel-guidage" style="
-            background: #000000;
-            border: 2px solid {led_color};
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin: 16px 0;
-            text-align: center;
-            box-shadow: 0 0 15px {led_color}55, inset 0 0 15px {led_color}22;
-            position: relative;
-            overflow: hidden;
-        ">
-            <div style="
-                font-family: 'DM Mono', monospace;
-                font-size: 20px;
-                font-weight: 500;
-                color: #FFFFFF;
-                text-transform: uppercase;
-                letter-spacing: 0.12em;
-                text-shadow: 0 0 12px {led_color}77, 0 0 25px {led_color}44;
-                animation: led-glow-guidage 2s ease-in-out infinite alternate;
-            ">
-                {current_message}
-            </div>
-            <div style="
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 2px;
-                background: linear-gradient(90deg, transparent, {led_color}, transparent);
-                animation: scan-guidage 3s linear infinite;
-            "></div>
-        </div>
-        
-        <style>
-        @keyframes led-glow-guidage {{
-            0% {{ opacity: 0.8; }}
-            100% {{ opacity: 1; }}
-        }}
-        @keyframes scan-guidage {{
-            0% {{ transform: translateX(-100%); }}
-            100% {{ transform: translateX(100%); }}
-        }}
-        </style>
-        """, unsafe_allow_html=True)
-        
         # Badge direction + dots
         badge_cls = "dir-achat" if direction == "ACHAT" else "dir-vente"
         badge_sym = "▲ ACHAT"  if direction == "ACHAT" else "▼ VENTE"
