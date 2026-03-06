@@ -613,6 +613,7 @@ date_str = datetime.now(PARIS).strftime("%d %b %Y").upper()
 c_title, c_clock = st.columns([3, 1])
 with c_title:
     st.markdown('<p class="hud-eyebrow">◈ Copilot de Trading</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hud-title">Plan de Trading</p>', unsafe_allow_html=True)
 with c_clock:
     st.markdown(f'<p class="live-date">{date_str}</p><p class="live-clock">{now_str}</p>', unsafe_allow_html=True)
 
@@ -670,8 +671,8 @@ with c_sess:
         st.markdown("""
         <div class="card">
             <div class="timer-label">⏱ Décompte Session</div>
-            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--text-faint);margin-top:8px;">Hors session</div>
-            <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:6px;letter-spacing:0.12em;">En attente d'ouverture</div>
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--text-faint);margin-top:8px;text-align:center;">Hors session</div>
+            <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:6px;letter-spacing:0.12em;text-align:center;">En attente d'ouverture</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -725,16 +726,17 @@ if st.session_state.step == 0:
         </div>
         """, unsafe_allow_html=True)
         
-        # Bouton d'accès au rapport de session (toujours visible)
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("📊 Rapport de session", use_container_width=True, key="report_from_anywhere"):
-            st.session_state.summary_shown = True
-            st.rerun()
+        # Bouton d'accès au rapport de session (uniquement si en session)
+        if session_name is not None:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("📊 Rapport de session", use_container_width=True, key="report_from_anywhere"):
+                st.session_state.summary_shown = True
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # RAPPORT DE PERFORMANCE (toujours visible si summary_shown et pas d'étape de trading)
 # ══════════════════════════════════════════════════════════════
-if st.session_state.summary_shown and st.session_state.step == 0:
+if st.session_state.summary_shown and st.session_state.step == 0 and session_name is not None:
     st.markdown("""
     <div class="step-hdr">
         <div class="step-num-badge">Fin de session</div>
