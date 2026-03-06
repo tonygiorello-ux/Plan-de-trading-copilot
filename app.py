@@ -258,7 +258,7 @@ st.markdown("""
 
 /* ── SESSION PILLS ── */
 .sess-pill {
-    border-radius:8px; padding:12px 16px;
+    border-radius:8px; padding:14px 18px;
     border:1px solid var(--border);
     background:var(--surface2);
 }
@@ -284,11 +284,18 @@ st.markdown("""
     font-family:'DM Mono',monospace; font-size:10px;
     color:var(--text-faint); letter-spacing:0.22em;
     text-transform:uppercase; margin-bottom:8px;
+    text-align: center;
+}
+.timer-pct {
+    font-family:'DM Mono',monospace; font-size:10px;
+    color:var(--text-faint); letter-spacing:0.15em;
+    text-align: center;
 }
 .timer-big {
     font-family:'DM Mono',monospace; font-size:42px; font-weight:500;
     color:var(--cyan); letter-spacing:0.04em; line-height:1;
     text-shadow: 0 0 20px rgba(59,255,160,0.4);
+    text-align: center;
 }
 .timer-big.warn  { color:var(--orange) !important; text-shadow:0 0 20px rgba(255,184,0,0.4) !important; }
 .timer-big.danger{ color:var(--red)    !important; text-shadow:0 0 20px rgba(255,95,95,0.4)  !important; }
@@ -571,7 +578,7 @@ def convert_to_csv(trades):
         'Date', 'Session', 'Direction', 'Entrée', 'Sortie', 
         'Résultat', 'Bonnes Conditions', 'Annonces Vérifiées',
         'Règles Discipline', 'Règles Timing', 
-        'SL Respecté', 'Tenue Respectée', 'TP Atteint'
+        'SL Respecté', 'TP Atteint'
     ])
     
     # Données
@@ -606,6 +613,7 @@ date_str = datetime.now(PARIS).strftime("%d %b %Y").upper()
 c_title, c_clock = st.columns([3, 1])
 with c_title:
     st.markdown('<p class="hud-eyebrow">◈ Copilot de Trading</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hud-title">Plan de Trading</p>', unsafe_allow_html=True)
 with c_clock:
     st.markdown(f'<p class="live-date">{date_str}</p><p class="live-clock">{now_str}</p>', unsafe_allow_html=True)
 
@@ -656,7 +664,7 @@ with c_sess:
             <div class="progress-track">
                 <div style="width:{pct:.1f}%;height:100%;background:{fill_c};border-radius:2px;transition:width 1s linear;"></div>
             </div>
-            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-faint);letter-spacing:0.15em;">{pct:.0f}% ÉCOULÉ</div>
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-faint);letter-spacing:0.15em;" class="timer-pct">{pct:.0f}% ÉCOULÉ</div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -747,24 +755,24 @@ if st.session_state.summary_shown and st.session_state.step == 0:
         # Calcul des pourcentages de respect des règles
         sl_respected_count = len([t for t in trades if t["sl_respected"] == True])
         tp_reached_count = len([t for t in trades if t["tp_reached"] == True])
-        hold_respected_count = len([t for t in trades if t.get("hold_respected", False) == True])
         sl_respect_rate = int((sl_respected_count / total_trades * 100)) if total_trades > 0 else 0
         tp_reach_rate = int((tp_reached_count / total_trades * 100)) if total_trades > 0 else 0
-        hold_respect_rate = int((hold_respected_count / total_trades * 100)) if total_trades > 0 else 0
         
         # Calcul du pourcentage total de respect des règles
         total_rules_respected = 0
         total_rules_possible = 0
         
         for trade in trades:
-            # Règles d'entrée validées
+            # Compter TOUTES les règles validées avec "J'ai vérifié"
             entry_rules = 0
             if "s1" in trade["validated_rules"]:
-                entry_rules += len(trade["validated_rules"]["s1"])
+                # Uniquement les règles de discipline (r1, r2)
+                discipline_rules = [r for r in trade["validated_rules"]["s1"] if r in ["r1", "r2"]]
+                entry_rules += len(discipline_rules)
             if "s2" in trade["validated_rules"]:
-                # Compter uniquement r1 et r2 (r3 est optionnelle)
-                s2_rules = [r for r in trade["validated_rules"]["s2"] if r in ["r1", "r2"]]
-                entry_rules += len(s2_rules)
+                # Uniquement les règles timing obligatoires (r1, r2)
+                timing_rules = [r for r in trade["validated_rules"]["s2"] if r in ["r1", "r2"]]
+                entry_rules += len(timing_rules)
             total_rules_respected += entry_rules
             
             # Conditions de trading (2 conditions)
@@ -773,20 +781,19 @@ if st.session_state.summary_shown and st.session_state.step == 0:
             if trade.get("annonces"):
                 total_rules_respected += 1
             
-            # Règles de sortie (SL/TP/HOLD)
+            # Règles de sortie (SL/TP)
             if trade["sl_respected"]:
                 total_rules_respected += 1
             if trade["tp_reached"]:
                 total_rules_respected += 1
-            if trade.get("hold_respected", False):
-                total_rules_respected += 1
             
-            total_rules_possible += entry_rules + 3  # +2 conditions + 3 pour SL/TP/HOLD (r3 timing est optionnelle)
+            # Maximum possible : 2 discipline + 2 timing + 2 conditions + 2 SL/TP = 8 règles
+            total_rules_possible += 8
         
         overall_respect_rate = int((total_rules_respected / total_rules_possible * 100)) if total_rules_possible > 0 else 0
         
         # Affichage des statistiques
-        s1, s2, s3, s4, s5 = st.columns(5)
+        s1, s2, s3, s4 = st.columns(4)
         with s1:
             st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--text);">{total_trades}</div><div class="stat-lbl" style="color:var(--text);">Trades</div></div>', unsafe_allow_html=True)
         with s2:
@@ -794,8 +801,6 @@ if st.session_state.summary_shown and st.session_state.step == 0:
         with s3:
             st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--red);">{sl_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">SL Respect</div></div>', unsafe_allow_html=True)
         with s4:
-            st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--cyan);">{hold_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">Tenue Respect</div></div>', unsafe_allow_html=True)
-        with s5:
             st.markdown(f'<div class="stat-box"><div class="stat-num" style="color:var(--orange);">{overall_respect_rate}%</div><div class="stat-lbl" style="color:var(--text);">Règles Respect</div></div>', unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
@@ -839,21 +844,40 @@ if st.session_state.summary_shown and st.session_state.step == 0:
                 # Règles validées
                 rules_text = []
                 
-                # Compter uniquement les règles de discipline (r1, r2) dans s1
+                # Compter le total de règles validées sur 8 maximum
+                total_validated = 0
+                
+                # Règles de discipline (r1, r2)
                 discipline_count = 0
                 if "s1" in trade["validated_rules"]:
-                    discipline_rules = ["r1", "r2"]  # règles de discipline uniquement
-                    discipline_count = len([r for r in discipline_rules if r in trade["validated_rules"]["s1"]])
-                    rules_text.append(f"Discipline: {discipline_count}/2")
+                    discipline_rules = [r for r in trade["validated_rules"]["s1"] if r in ["r1", "r2"]]
+                    discipline_count = len(discipline_rules)
+                    total_validated += discipline_count
                 
-                # Compter les règles de timing dans s2
-                # if "s2" in trade["validated_rules"]:
-                #     rules_text.append(f"Timing: {len(trade['validated_rules']['s2'])}/3")
+                # Règles de timing (r1, r2 uniquement - r3 est optionnelle)
+                timing_count = 0
+                if "s2" in trade["validated_rules"]:
+                    timing_rules = [r for r in trade["validated_rules"]["s2"] if r in ["r1", "r2"]]
+                    timing_count = len(timing_rules)
+                    total_validated += timing_count
                 
-                # SL/TP et HOLD
+                # Conditions de trading
+                if trade.get("bonnes_conditions"):
+                    total_validated += 1
+                if trade.get("annonces"):
+                    total_validated += 1
+                
+                # SL/TP
+                if trade["sl_respected"]:
+                    total_validated += 1
+                if trade["tp_reached"]:
+                    total_validated += 1
+                
+                rules_text.append(f"Règles: {total_validated}/8")
+                
+                # SL/TP 
                 sl_text = "✅" if trade["sl_respected"] else "❌"
                 tp_text = "✅" if trade["tp_reached"] else "❌"
-                hold_text = "✅" if trade.get("hold_respected", False) else "❌"
                 
                 st.markdown(f"""
                 <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:8px;">
@@ -868,7 +892,7 @@ if st.session_state.summary_shown and st.session_state.step == 0:
                     <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);">
                         <div>📅 {trade['date']} | 📍 Session {trade['session']}</div>
                         <div>📋 Règles: {' | '.join(rules_text)}</div>
-                        <div>🛡️ SL: {sl_text} | ⏱️ Tenue: {hold_text} | 🎯 TP: {tp_text}</div>
+                        <div>🛡️ SL: {sl_text} | 🎯 TP: {tp_text}</div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1050,41 +1074,6 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
         </div>
         """, unsafe_allow_html=True)
         
-        # Carte "Quand est-ce que je tiens ?"
-        if direction == "ACHAT":
-            hold_condition = "Quand la bleue foncée reste au dessus de la rouge"
-            hold_color = "var(--cyan)"
-            hold_icon = "🟢"
-        else:
-            hold_condition = "Quand la bleue claire reste en dessous de la rouge"
-            hold_color = "var(--red)"
-            hold_icon = "🔴"
-        
-        # État de la checkbox pour la règle "tiens"
-        hold_respected = st.session_state.get("hold_respect_trade", False)
-        hold_status = "✅ VALIDÉ" if hold_respected else "⏳ EN ATTENTE"
-        hold_status_color = "var(--cyan)" if hold_respected else "var(--orange)"
-        
-        st.markdown(f"""
-        <div class="sess-pill" style="border-left:4px solid {hold_color}; border-color:{hold_color}; background:rgba(59,255,160,0.05);">
-            <div class="sess-status" style="color:{hold_color};">⏱️ TENUE DE POSITION</div>
-            <div class="sess-name" style="color:{hold_color};">Quand est-ce que je tiens ?</div>
-            <div style="background:rgba(255,255,255,0.1); border-radius:6px; padding:12px; margin:8px 0; text-align:center;">
-                <div style="font-family:'DM Mono',monospace;font-size:14px;color:{hold_color};font-weight:600;letter-spacing:0.05em;">
-                    {hold_icon} {hold_condition}
-                </div>
-            </div>
-            <div style="background:rgba(255,255,255,0.1); border-radius:6px; padding:8px; margin:8px 0; text-align:center;">
-                <div style="font-family:'DM Mono',monospace;font-size:12px;color:{hold_status_color};font-weight:600;letter-spacing:0.1em;">
-                    {hold_status}
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Checkbox pour la règle "tiens"
-        hold_respected = st.checkbox("✓ J'ai respecté la tenue de position", key="hold_respect_trade", help="Valide si tu as bien tenu la position selon la règle")
-        
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Cartes SL et TP côte à côte - Style session avec police plus grande
@@ -1106,7 +1095,7 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             st.markdown(f"""
             <div class="sess-pill" style="border-left:4px solid var(--red); border-color:var(--red); background:rgba(255,95,95,0.05);">
                 <div class="sess-status" style="color:var(--red);">🛡️ STOP-LOSS</div>
-                <div class="sess-name" style="color:var(--red);">Signal de sortie perdante</div>
+                <div class="sess-name" style="color:var(--red);font-size:14px;">Signal de sortie...<br>Rebond Mécanique</div>
                 <div style="background:rgba(255,255,255,0.1); border-radius:6px; padding:8px; margin:8px 0; text-align:center;">
                     <div style="font-family:'DM Mono',monospace;font-size:12px;color:{sl_status_color};font-weight:600;letter-spacing:0.1em;">
                         {sl_status}
@@ -1139,7 +1128,7 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             tp_status = "✅ VALIDÉ" if tp_reached else "⏳ EN ATTENTE"
             tp_status_color = "var(--cyan)" if tp_reached else "var(--orange)"
             
-            tp_description = "Quand les prix vont rencontrer les prochains points de friction (bol m1-m5)"
+            tp_description = "Sortie sur le prochain point de friction ,sur les UT M1 ou M5 :<br><br>Bande de Bollinger 1 ou 2, moyenne des bande de Bollinger, 369."
             
             st.markdown(f"""
             <div class="sess-pill" style="border-left:4px solid var(--cyan); border-color:var(--cyan); background:rgba(59,255,160,0.05);">
@@ -1158,8 +1147,6 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             
             # Checkbox TP sous la carte
             st.checkbox("🎯 Take Profit atteint", key="tp_reach_trade")
-            
-            st.write("---")
             
             col1, col2 = st.columns(2)
             with col1:
@@ -1227,7 +1214,7 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             </div>
             """, unsafe_allow_html=True)
             sk = "s1"
-            rule_card("Entrée trop tardive → réduit le gain et augmente potentiellement la perte.", "orange", sk, "r1")
+            rule_card("Entrée trop tardive → réduit le gain et augmente potentiellement la perte.<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Est-on sur les Bollingers du M1, du M5? Peut-être même déjà, du M15?", "orange", sk, "r1")
             rule_card("Ne pas respecter le Stop-Loss fixé → INTERDIT.", "red", sk, "r2")
             can_next = all_ok(sk, ["r1", "r2"])
             
@@ -1268,7 +1255,7 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             else:
                 rule_card("VENTE : Bleue claire + marron passent EN-DESSOUS de la rouge sur 3 unités de temps consécutives.", "red", sk, "r2")
             rule_card("ACCÉLÉRATION : Les deux vidyas se collent → signal d'accélération.", "orange", sk, "r3")
-            can_next = all_ok(sk, ["r1", "r2"])
+            can_next = all_ok(sk, ["r1", "r2"])  # r3 est optionnelle
 
         # ── BANNER ENTRÉE EN POSITION ─────────────────────
         if can_next and step == 3:
