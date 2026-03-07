@@ -1163,9 +1163,9 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
         """, unsafe_allow_html=True)
         
         st.text_area(
-            "Rédiger une note",
+            "Note",
             key="trade_note",
-            placeholder="Ex: Rédige une note sur la position ici",
+            placeholder="Rédige une note sur la position ici...",
             height=100,
             help="Vos notes seront sauvegardées avec la sortie du trade"
         )
