@@ -47,7 +47,7 @@ st_autorefresh(interval=1000, key="timer_refresh")
 SESSIONS = [
     ("EU",  time(9, 45),  time(11, 15)),
     ("US1", time(15, 45), time(17, 15)),
-    ("US2", time(19, 30), time(21,  00)),
+    ("US2", time(19, 30), time(21,  59)),
 ]
 
 def get_active_session():
@@ -81,6 +81,8 @@ defaults = {
     # Historique des trades avec détails
     "trade_history": saved_trade_history,  # Utiliser les données chargées
     "validated": saved_validated,  # Utiliser les règles validées chargées
+    # Note du trade en cours
+    "trade_note": "",
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -138,6 +140,7 @@ def record_trade_exit(is_win, sl_respected, tp_reached):
         last_trade["sl_respected"] = sl_respected
         last_trade["tp_reached"] = tp_reached
         last_trade["hold_respected"] = st.session_state.get("hold_respect_trade", False)
+        last_trade["note"] = st.session_state.get("trade_note", "")  # Ajout de la note
         save_data()  # Sauvegarder après la mise à jour du trade
 
 def get_tp_zone():
@@ -578,7 +581,7 @@ def convert_to_csv(trades):
         'Date', 'Session', 'Direction', 'Entrée', 'Sortie', 
         'Résultat', 'Bonnes Conditions', 'Annonces Vérifiées',
         'Règles Discipline', 'Règles Timing', 
-        'SL Respecté', 'TP Atteint'
+        'SL Respecté', 'TP Atteint', 'Notes'
     ])
     
     # Données
@@ -599,7 +602,8 @@ def convert_to_csv(trades):
             f"{timing_rules}/3",
             '✅' if trade.get('sl_respected') else '❌',
             '✅' if trade.get('hold_respected', False) else '❌',
-            '✅' if trade.get('tp_reached') else '❌'
+            '✅' if trade.get('tp_reached') else '❌',
+            trade.get('note', '')
         ])
     
     return output.getvalue()
@@ -613,6 +617,7 @@ date_str = datetime.now(PARIS).strftime("%d %b %Y").upper()
 c_title, c_clock = st.columns([3, 1])
 with c_title:
     st.markdown('<p class="hud-eyebrow">◈ Copilot de Trading</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hud-title">Plan de Trading</p>', unsafe_allow_html=True)
 with c_clock:
     st.markdown(f'<p class="live-date">{date_str}</p><p class="live-clock">{now_str}</p>', unsafe_allow_html=True)
 
@@ -893,6 +898,7 @@ if st.session_state.summary_shown and st.session_state.step == 0 and session_nam
                         <div>📅 {trade['date']} | 📍 Session {trade['session']}</div>
                         <div>📋 Règles: {' | '.join(rules_text)}</div>
                         <div>🛡️ SL: {sl_text} | 🎯 TP: {tp_text}</div>
+                        {f'<div>📝 Notes: {trade.get("note", "").replace("<", "&lt;").replace(">", "&gt;")}</div>' if trade.get("note") else ""}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1147,34 +1153,51 @@ if st.session_state.step >= 2 or st.session_state.trade_active:
             
             # Checkbox TP sous la carte
             st.checkbox("🎯 Take Profit atteint", key="tp_reach_trade")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Sortie Gagnante", use_container_width=True, key="exit_win"):
-                    sl_respected = st.session_state.get("sl_respect_trade", False)
-                    tp_reached = st.session_state.get("tp_reach_trade", False)
-                    record_trade_exit(True, sl_respected, tp_reached)
-                    log_event("SORTI_GAGNANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
-                    st.session_state.trade_active = False
-                    st.session_state.step = 0
-                    st.session_state.direction = None
-                    st.session_state.validated = {}
-                    st.session_state.entry_time = None
-                    st.session_state.can_enter = False
-                    st.rerun()
-            with col2:
-                if st.button("❌ Sortie Perdante", use_container_width=True, key="exit_loss"):
-                    sl_respected = st.session_state.get("sl_respect_trade", False)
-                    tp_reached = st.session_state.get("tp_reach_trade", False)
-                    record_trade_exit(False, sl_respected, tp_reached)
-                    log_event("SORTI_PERDANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
-                    st.session_state.trade_active = False
-                    st.session_state.step = 0
-                    st.session_state.direction = None
-                    st.session_state.validated = {}
-                    st.session_state.entry_time = None
-                    st.session_state.can_enter = False
-                    st.rerun()
+        
+        # Section pour prendre des notes
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="card">
+            <div class="timer-label">📝 Notes du trade</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.text_area(
+            "Rédiger une note",
+            key="trade_note",
+            placeholder="Ex: Rédige une note sur la position ici",
+            height=100,
+            help="Vos notes seront sauvegardées avec la sortie du trade"
+        )
+        
+        # Boutons de sortie
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Sortie Gagnante", use_container_width=True, key="exit_win"):
+                sl_respected = st.session_state.get("sl_respect_trade", False)
+                tp_reached = st.session_state.get("tp_reach_trade", False)
+                record_trade_exit(True, sl_respected, tp_reached)
+                log_event("SORTI_GAGNANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
+                st.session_state.trade_active = False
+                st.session_state.step = 0
+                st.session_state.direction = None
+                st.session_state.validated = {}
+                st.session_state.entry_time = None
+                st.session_state.can_enter = False
+                st.rerun()
+        with col2:
+            if st.button("❌ Sortie Perdante", use_container_width=True, key="exit_loss"):
+                sl_respected = st.session_state.get("sl_respect_trade", False)
+                tp_reached = st.session_state.get("tp_reach_trade", False)
+                record_trade_exit(False, sl_respected, tp_reached)
+                log_event("SORTI_PERDANT", f"{direction} | {st.session_state.entry_time} → {datetime.now(PARIS).strftime('%H:%M:%S')}")
+                st.session_state.trade_active = False
+                st.session_state.step = 0
+                st.session_state.direction = None
+                st.session_state.validated = {}
+                st.session_state.entry_time = None
+                st.session_state.can_enter = False
+                st.rerun()
 
     # ──────────────────────────────────────────────────────
     # MODE GUIDAGE — Steps 1 & 2 (avant entrée)
