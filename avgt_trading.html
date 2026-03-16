@@ -185,6 +185,7 @@ html, body {
   min-width: 0;
 }
 .disc-item svg { flex-shrink: 0; width: clamp(11px, 1.2vw, 16px); height: clamp(11px, 1.2vw, 16px); }
+.disc-emoji { font-size: 1.1em; line-height: 1; flex-shrink: 0; filter: grayscale(1) sepia(1) hue-rotate(300deg) saturate(3); }
 .disc-sep { width: 1px; height: 1.4em; background: rgba(255,61,90,.25); flex-shrink: 0; }
 
 /* ── RULE CARDS ── */
@@ -326,12 +327,12 @@ hl { color: var(--text); font-weight: 700; }
     <div class="disc-tag">DISCIPLINE</div>
     <div class="disc-items">
       <div class="disc-item">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="disc-emoji">⌛</span>
         Entrée trop tardive → gain réduit, risque augmenté
       </div>
       <div class="disc-sep"></div>
       <div class="disc-item">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+        <span class="disc-emoji">🚫</span>
         Ne pas respecter le Stop-Loss → INTERDIT
       </div>
     </div>
