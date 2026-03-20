@@ -188,6 +188,38 @@ html, body {
 .disc-emoji { font-size: 1.1em; line-height: 1; flex-shrink: 0; filter: grayscale(1) sepia(1) hue-rotate(300deg) saturate(3); }
 .disc-sep { width: 1px; height: 1.4em; background: rgba(255,61,90,.25); flex-shrink: 0; }
 
+/* ── STAR RULE ── */
+.star-rule {
+  background: rgba(255,184,48,.06);
+  border: 1px solid rgba(255,184,48,.18);
+  border-left: 3px solid var(--gold);
+  border-radius: .75rem;
+  padding: .9rem 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+.star-tag {
+  font-family: var(--mono);
+  font-size: clamp(7px, 1vw, 11px);
+  font-weight: 700;
+  letter-spacing: .18em;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.star-item {
+  font-size: clamp(9px, 1.3vw, 15px);
+  font-weight: 700;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: .45em;
+  white-space: nowrap;
+  min-width: 0;
+}
+.star-emoji { font-size: 1.1em; line-height: 1; flex-shrink: 0; }
+
 /* ── RULE CARDS ── */
 .rules-stack { display: flex; flex-direction: column; gap: .9rem; }
 
@@ -335,6 +367,14 @@ hl { color: var(--text); font-weight: 700; }
         <span class="disc-emoji">🚫</span>
         Ne pas respecter le Stop-Loss → INTERDIT
       </div>
+    </div>
+  </div>
+
+  <div class="star-rule">
+    <div class="star-tag">CONDITION</div>
+    <div class="star-item">
+      <span class="star-emoji">⭐</span>
+      Sur prix cloturés, sur les 3 UT's, en dehors des vidyas
     </div>
   </div>
 
